@@ -1,134 +1,87 @@
 import { WebSocketService, ConnectionStatus } from '../../service/WebSocketService';
-import { DataService, ActionData } from '../../service/DataService';
+import { DataService, RecommendationData } from '../../service/DataService';
 import { VibrationService } from '../../service/VibrationService';
 
 @Entry
 @Component
 struct WidgetCard {
-  // 卡片状态
-  @State currentAction: string = 'Waiting for data...';
-  @State actionType: string = 'unknown';
-  @State reward: number = 0;
-  @State description: string = 'Connecting to server...';
-  @State lastUpdate: string = 'never';
+  @State currentData: RecommendationData | null = null;
   @State connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED;
   @State hasReceivedData: boolean = false;
 
-  // WebSocket服务
   private wsService: WebSocketService | null = null;
 
-  // 卡片配置
   readonly fullWidthPercent: string = '100%';
   readonly fullHeightPercent: string = '100%';
 
-  // 组件创建时初始化
   aboutToAppear(): void {
     console.log('WidgetCard: aboutToAppear');
     this.initWebSocket();
   }
 
-  // 组件销毁时清理
   aboutToDisappear(): void {
     console.log('WidgetCard: aboutToDisappear');
     this.cleanup();
   }
 
-  /**
-   * 初始化WebSocket连接
-   */
   private initWebSocket(): void {
     this.wsService = new WebSocketService('ws://0.0.0.0:8080/recommendation-stream');
 
-    // 设置消息回调
     this.wsService.onMessage((data: string) => {
       this.handleMessage(data);
     });
 
-    // 设置状态回调
     this.wsService.onStatusChange((status: ConnectionStatus) => {
       this.connectionStatus = status;
       this.updateStatusUI(status);
     });
 
-    // 连接服务器
     this.wsService.connect();
   }
 
-  /**
-   * 处理接收到的消息
-   */
   private handleMessage(jsonString: string): void {
     console.log(`WidgetCard: Received message: ${jsonString}`);
 
-    // 解析数据
-    const actionData = DataService.parseActionData(jsonString);
+    const recommendationData = DataService.parseRecommendationData(jsonString);
 
-    if (actionData) {
-      // 更新卡片显示
-      this.currentAction = actionData.action;
-      this.actionType = actionData.type;
-      this.reward = actionData.metadata.reward;
-      this.description = actionData.metadata.description;
-      this.lastUpdate = DataService.formatTime(actionData.timestamp);
+    if (recommendationData) {
+      this.currentData = recommendationData;
       this.hasReceivedData = true;
 
-      console.log(`WidgetCard: Updated card with action: ${actionData.action}`);
+      console.log(`WidgetCard: Updated card with module: ${recommendationData.active_module}`);
 
-      // 根据动作类型触发震动（简单直接）
-      VibrationService.vibrateByActionType(actionData.type);
+      VibrationService.vibrateByModule(
+        recommendationData.active_module,
+        recommendationData.dqn?.type
+      );
     } else {
       console.warn('WidgetCard: Failed to parse message');
     }
   }
 
-  /**
-   * 根据连接状态更新UI
-   */
   private updateStatusUI(status: ConnectionStatus): void {
     switch (status) {
       case ConnectionStatus.CONNECTING:
-        this.description = 'Connecting to server...';
         break;
       case ConnectionStatus.CONNECTED:
-        if (!this.hasReceivedData) {
-          this.description = 'Connected, waiting for data...';
-        }
         break;
       case ConnectionStatus.DISCONNECTED:
-        this.description = 'Disconnected from server';
         break;
       case ConnectionStatus.ERROR:
-        this.description = 'Connection error';
         break;
     }
   }
 
-  /**
-   * 处理连接状态变化
-   */
-  private handleStatusChange(status: ConnectionStatus): void {
-    // 连接状态变化时不触发震动，只在收到数据时震动
-    console.log(`WidgetCard: Connection status changed to ${status}`);
-  }
-
-  /**
-   * 清理资源
-   */
   private cleanup(): void {
-    // 停止震动
     VibrationService.stopVibration();
     console.log('WidgetCard: Stopped vibration');
 
-    // 断开WebSocket连接
     if (this.wsService) {
       this.wsService.disconnect();
       this.wsService = null;
     }
   }
 
-  /**
-   * 处理卡片点击 - 重新连接或断开
-   */
   private handleCardClick(): void {
     console.log(`WidgetCard: Card clicked, current status: ${this.connectionStatus}`);
 
@@ -147,7 +100,6 @@ struct WidgetCard {
 
   build() {
     Column() {
-      // Title with status indicator
       Row() {
         Text('Action Recommendation')
           .fontSize(18)
@@ -155,38 +107,43 @@ struct WidgetCard {
           .fontColor('#333333')
           .layoutWeight(1)
 
-        // Connection status indicator
         Circle()
           .width(8)
           .height(8)
           .fill(this.getStatusColor())
+
+        if (this.currentData) {
+          Text(DataService.getModuleLabel(this.currentData.active_module))
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(DataService.getModuleLabelTextColor(this.currentData.active_module))
+            .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+            .backgroundColor(DataService.getModuleLabelBgColor(this.currentData.active_module))
+            .borderRadius(6)
+            .margin({ left: 8 })
+        }
       }
       .width('100%')
       .justifyContent(FlexAlign.SpaceBetween)
       .alignItems(VerticalAlign.Center)
-      .margin({ top: 12, bottom: 12, left: 20 })
+      .margin({ top: 12, bottom: 12, left: 20, right: 16 })
 
-      // Divider
       Row()
         .height(1)
         .width('100%')
         .backgroundColor('#E0E0E0')
         .margin({ left: 20, right: 20 })
 
-      // Main content
       Column({ space: 12 }) {
-        if (this.hasReceivedData) {
-          // 有数据时显示动作信息
+        if (this.hasReceivedData && this.currentData) {
           this.actionContent();
         } else {
-          // 无数据时显示连接状态
           this.statusContent();
         }
       }
       .margin({ left: 16, right: 16, top: 16 })
       .layoutWeight(1)
 
-      // Footer with status text
       Text(this.getStatusText())
         .fontSize(10)
         .fontColor('#999999')
@@ -203,99 +160,181 @@ struct WidgetCard {
     })
   }
 
-  /**
-   * 动作内容区域
-   */
   @Builder
   actionContent(): void {
     Column({ space: 12 }) {
-      // Action type badge
-      Row() {
-        Text(this.actionType === 'recommend' ? 'RECOMMEND' : 'PROBE')
-          .fontSize(14)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-          .backgroundColor(this.actionType === 'recommend' ? '#1890FF' : '#722ED1')
-          .borderRadius(12)
-      }
-      .width('100%')
-
-      // Action name section
-      Column({ space: 4 }) {
-        Text('Action')
-          .fontSize(12)
-          .fontColor('#999999')
-        Text(this.currentAction)
-          .fontSize(16)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#333333')
-      }
-      .width('100%')
-
-      // Reward section with progress bar
-      Column({ space: 6 }) {
-        Row({ space: 8 }) {
-          Text('Reward')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.reward.toFixed(2))
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#52C41A')
+      if (this.currentData) {
+        if (this.currentData.active_module === 'rule_engine') {
+          this.ruleEngineContent();
+        } else if (this.currentData.active_module === 'dqn') {
+          this.dqnContent();
+        } else if (this.currentData.active_module === 'vlm') {
+          this.vlmContent();
         }
-
-        // Reward progress bar
-        Row() {
-          Row()
-            .height(6)
-            .borderRadius(3)
-            .backgroundColor(this.actionType === 'recommend' ? '#1890FF' : '#722ED1')
-            .width(`${this.reward * 100}%`)
-        }
-        .width('100%')
-        .height(6)
-        .backgroundColor('#F0F0F0')
-        .borderRadius(3)
       }
-      .width('100%')
-
-      // Description section
-      Column({ space: 4 }) {
-        Text('Description')
-          .fontSize(12)
-          .fontColor('#999999')
-        Text(this.description)
-          .fontSize(14)
-          .fontColor('#333333')
-          .lineHeight(20)
-          .maxLines(3)
-      }
-      .width('100%')
-
-      // Update time
-      Row() {
-        Text(`Updated: ${this.lastUpdate}`)
-          .fontSize(11)
-          .fontColor('#999999')
-      }
-      .width('100%')
     }
   }
 
-  /**
-   * 状态内容区域
-   */
+  @Builder
+  ruleEngineContent(): void {
+    Column({ space: 12 }) {
+      if (this.currentData?.rule_engine?.category) {
+        Column({ space: 4 }) {
+          Text('Category')
+            .fontSize(12)
+            .fontColor('#999999')
+          Text(this.currentData.rule_engine.category)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#333333')
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.rule_engine?.decision) {
+        Column({ space: 4 }) {
+          Text('Decision')
+            .fontSize(12)
+            .fontColor('#999999')
+          Text(this.currentData.rule_engine.decision)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#333333')
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.rule_engine?.description) {
+        Column({ space: 4 }) {
+          Text('Description')
+            .fontSize(12)
+            .fontColor('#999999')
+          Text(this.currentData.rule_engine.description)
+            .fontSize(14)
+            .fontColor('#333333')
+            .lineHeight(20)
+            .maxLines(3)
+        }
+        .width('100%')
+      }
+    }
+  }
+
+  @Builder
+  dqnContent(): void {
+    Column({ space: 12 }) {
+      if (this.currentData?.dqn?.type) {
+        Row() {
+          Text(this.currentData.dqn.type === 'recommend' ? 'RECOMMEND' : 'PROBE')
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#FFFFFF')
+            .padding({ left: 12, right: 12, top: 4, bottom: 4 })
+            .backgroundColor(this.currentData.dqn.type === 'recommend' ? '#1890FF' : '#722ED1')
+            .borderRadius(12)
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.dqn?.action) {
+        Column({ space: 4 }) {
+          Text('Action')
+            .fontSize(12)
+            .fontColor('#999999')
+          Text(this.currentData.dqn.action)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#333333')
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.timestamp) {
+        Row() {
+          Text(`Updated: ${DataService.formatTime(this.currentData.timestamp)}`)
+            .fontSize(11)
+            .fontColor('#999999')
+        }
+        .width('100%')
+      }
+    }
+  }
+
+  @Builder
+  vlmContent(): void {
+    Column({ space: 12 }) {
+      if (this.currentData?.dqn?.type) {
+        Row() {
+          Text(this.currentData.dqn.type === 'recommend' ? 'RECOMMEND' : 'PROBE')
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#FFFFFF')
+            .padding({ left: 12, right: 12, top: 4, bottom: 4 })
+            .backgroundColor(this.currentData.dqn.type === 'recommend' ? '#1890FF' : '#722ED1')
+            .borderRadius(12)
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.vlm?.scene_category) {
+        Column({ space: 4 }) {
+          Text('Scene')
+            .fontSize(12)
+            .fontColor('#999999')
+          Text(this.currentData.vlm.scene_category)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#333333')
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.dqn?.action) {
+        Column({ space: 4 }) {
+          Text('Action')
+            .fontSize(12)
+            .fontColor('#999999')
+          Text(this.currentData.dqn.action)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#333333')
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.vlm?.description) {
+        Column({ space: 4 }) {
+          Text('Analysis')
+            .fontSize(12)
+            .fontColor('#999999')
+          Text(this.currentData.vlm.description)
+            .fontSize(14)
+            .fontColor('#333333')
+            .lineHeight(20)
+            .maxLines(3)
+        }
+        .width('100%')
+      }
+
+      if (this.currentData?.timestamp) {
+        Row() {
+          Text(`Updated: ${DataService.formatTime(this.currentData.timestamp)}`)
+            .fontSize(11)
+            .fontColor('#999999')
+        }
+        .width('100%')
+      }
+    }
+  }
+
   @Builder
   statusContent(): void {
     Column({ space: 12 }) {
-      // Status icon
       Text(this.getStatusIcon())
         .fontSize(32)
         .fontColor(this.getStatusColor())
 
-      // Status message
-      Text(this.description)
+      Text(this.getStatusDescription())
         .fontSize(14)
         .fontColor('#666666')
         .textAlign(TextAlign.Center)
@@ -305,27 +344,36 @@ struct WidgetCard {
     .justifyContent(FlexAlign.Center)
   }
 
-  /**
-   * 获取状态颜色
-   */
+  private getStatusDescription(): string {
+    switch (this.connectionStatus) {
+      case ConnectionStatus.CONNECTING:
+        return 'Connecting to server...';
+      case ConnectionStatus.CONNECTED:
+        return this.hasReceivedData ? 'Connected' : 'Connected, waiting for data...';
+      case ConnectionStatus.DISCONNECTED:
+        return 'Disconnected from server';
+      case ConnectionStatus.ERROR:
+        return 'Connection error';
+      default:
+        return 'Disconnected';
+    }
+  }
+
   private getStatusColor(): string {
     switch (this.connectionStatus) {
       case ConnectionStatus.CONNECTING:
-        return '#FAAD14'; // 橙色
+        return '#FAAD14';
       case ConnectionStatus.CONNECTED:
-        return '#52C41A'; // 绿色
+        return '#52C41A';
       case ConnectionStatus.DISCONNECTED:
-        return '#999999'; // 灰色
+        return '#999999';
       case ConnectionStatus.ERROR:
-        return '#F5222D'; // 红色
+        return '#F5222D';
       default:
         return '#999999';
     }
   }
 
-  /**
-   * 获取状态文本
-   */
   private getStatusText(): string {
     switch (this.connectionStatus) {
       case ConnectionStatus.CONNECTING:
@@ -341,9 +389,6 @@ struct WidgetCard {
     }
   }
 
-  /**
-   * 获取状态图标
-   */
   private getStatusIcon(): string {
     switch (this.connectionStatus) {
       case ConnectionStatus.CONNECTING:

@@ -1,69 +1,101 @@
 /**
- * 元数据接口
+ * Rule Engine data interface
  */
-export interface ActionMetadata {
-  reward: number;
+export interface RuleEngineData {
+  category: string;
+  decision: string;
+  description?: string;
+}
+
+/**
+ * DQN data interface
+ */
+export interface DQNData {
+  action: string;
+  type: 'recommend' | 'probe';
+}
+
+/**
+ * VLM data interface
+ */
+export interface VLMData {
+  scene_category: string;
   description: string;
 }
 
 /**
- * 动作数据接口
+ * Recommendation data interface (new format)
  */
-export interface ActionData {
+export interface RecommendationData {
   id: string;
-  type: 'recommend' | 'probe';
-  action: string;
   timestamp: number;
-  metadata: ActionMetadata;
+  active_module: 'rule_engine' | 'dqn' | 'vlm';
+  
+  rule_engine?: RuleEngineData;
+  dqn?: DQNData;
+  vlm?: VLMData;
 }
 
 /**
- * JSON数据接口（用于解析）
+ * JSON data interface for parsing
  */
 interface JsonData {
   id?: string;
-  type?: string;
-  action?: string;
   timestamp?: number;
-  metadata?: ActionMetadata;
+  active_module?: string;
+  rule_engine?: RuleEngineData;
+  dqn?: DQNData;
+  vlm?: VLMData;
 }
 
 /**
- * 数据处理服务 - 处理接收到的WebSocket数据
+ * Data processing service - handles WebSocket data parsing
  */
 export class DataService {
   /**
-   * 解析JSON字符串为ActionData对象
+   * Parse JSON string to RecommendationData object
    */
-  static parseActionData(jsonString: string): ActionData | null {
+  static parseRecommendationData(jsonString: string): RecommendationData | null {
     try {
       const data: JsonData = JSON.parse(jsonString);
 
-      // 验证必要字段
-      if (!data.id || !data.type || !data.action || !data.metadata) {
+      // Validate required fields
+      if (!data.id || !data.timestamp || !data.active_module) {
         console.warn('DataService: Missing required fields in data');
         return null;
       }
 
-      // 验证type字段
-      if (data.type !== 'recommend' && data.type !== 'probe') {
-        console.warn(`DataService: Invalid type: ${data.type}`);
+      // Validate active_module field
+      if (data.active_module !== 'rule_engine' && 
+          data.active_module !== 'dqn' && 
+          data.active_module !== 'vlm') {
+        console.warn(`DataService: Invalid active_module: ${data.active_module}`);
         return null;
       }
 
-      // 验证metadata字段
-      if (!data.metadata.reward || !data.metadata.description) {
-        console.warn('DataService: Missing metadata fields');
+      // Validate module data based on active_module
+      if (data.active_module === 'rule_engine' && !data.rule_engine) {
+        console.warn('DataService: Missing rule_engine data');
         return null;
       }
 
-      // 构建ActionData对象
+      if (data.active_module === 'dqn' && !data.dqn) {
+        console.warn('DataService: Missing dqn data');
+        return null;
+      }
+
+      if (data.active_module === 'vlm' && (!data.dqn || !data.vlm)) {
+        console.warn('DataService: Missing dqn or vlm data for vlm module');
+        return null;
+      }
+
       return {
         id: data.id,
-        type: data.type,
-        action: data.action,
         timestamp: data.timestamp,
-        metadata: data.metadata
+        active_module: data.active_module as 'rule_engine' | 'dqn' | 'vlm',
+        rule_engine: data.rule_engine,
+        dqn: data.dqn,
+        vlm: data.vlm
       };
 
     } catch (error) {
@@ -73,11 +105,11 @@ export class DataService {
   }
 
   /**
-   * 格式化时间戳为相对时间字符串
+   * Format timestamp to relative time string
    */
   static formatTime(timestamp: number): string {
     const now = Date.now();
-    const diff = now - timestamp * 1000; // 转换为毫秒
+    const diff = now - timestamp * 1000; // Convert to milliseconds
 
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -96,7 +128,7 @@ export class DataService {
   }
 
   /**
-   * 验证action字段是否有效
+   * Validate action field
    */
   static isValidAction(action: string): boolean {
     const validActions = [
@@ -113,9 +145,50 @@ export class DataService {
   }
 
   /**
-   * 格式化reward值
+   * Get module label text
    */
-  static formatReward(reward: number): string {
-    return reward.toFixed(2);
+  static getModuleLabel(activeModule: string): string {
+    switch (activeModule) {
+      case 'rule_engine':
+        return '[Rule]';
+      case 'dqn':
+        return '[DQN]';
+      case 'vlm':
+        return '[VLM]';
+      default:
+        return '[Unknown]';
+    }
+  }
+
+  /**
+   * Get module label background color
+   */
+  static getModuleLabelBgColor(activeModule: string): string {
+    switch (activeModule) {
+      case 'rule_engine':
+        return '#E0E0E0';
+      case 'dqn':
+        return '#E6F7FF';
+      case 'vlm':
+        return '#F9F0FF';
+      default:
+        return '#E0E0E0';
+    }
+  }
+
+  /**
+   * Get module label text color
+   */
+  static getModuleLabelTextColor(activeModule: string): string {
+    switch (activeModule) {
+      case 'rule_engine':
+        return '#666666';
+      case 'dqn':
+        return '#1890FF';
+      case 'vlm':
+        return '#722ED1';
+      default:
+        return '#666666';
+    }
   }
 }
