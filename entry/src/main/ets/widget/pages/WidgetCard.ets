@@ -1,93 +1,25 @@
-import { WebSocketService, ConnectionStatus } from '../../service/WebSocketService';
 import { DataService, RecommendationData } from '../../service/DataService';
 import { VibrationService } from '../../service/VibrationService';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
 
 @Entry
 @Component
 struct WidgetCard {
-  @State currentData: RecommendationData | null = null;
-  @State connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED;
+  @StorageLink('recommendationData') currentData: RecommendationData | null = null;
   @State hasReceivedData: boolean = false;
-
-  private wsService: WebSocketService | null = null;
 
   readonly fullWidthPercent: string = '100%';
   readonly fullHeightPercent: string = '100%';
 
   aboutToAppear(): void {
-    this.initWebSocket();
+    hilog.info(DOMAIN, 'WidgetCard', 'aboutToAppear');
   }
 
   aboutToDisappear(): void {
-    this.cleanup();
-  }
-
-  private initWebSocket(): void {
-    this.wsService = new WebSocketService('ws://0.0.0.0:8080/recommendation-stream');
-
-    this.wsService.onMessage((data: string) => {
-      this.handleMessage(data);
-    });
-
-    this.wsService.onStatusChange((status: ConnectionStatus) => {
-      this.connectionStatus = status;
-      this.updateStatusUI(status);
-    });
-
-    this.wsService.connect();
-  }
-
-  private handleMessage(jsonString: string): void {
-
-    const recommendationData = DataService.parseRecommendationData(jsonString);
-
-    if (recommendationData) {
-      this.currentData = recommendationData;
-      this.hasReceivedData = true;
-
-      VibrationService.vibrateByModule(
-        recommendationData.active_module,
-        recommendationData.dqn?.type
-      );
-    }
-  }
-
-  private updateStatusUI(status: ConnectionStatus): void {
-    switch (status) {
-      case ConnectionStatus.CONNECTING:
-        break;
-      case ConnectionStatus.CONNECTED:
-        break;
-      case ConnectionStatus.DISCONNECTED:
-        break;
-      case ConnectionStatus.ERROR:
-        break;
-    }
-  }
-
-  private cleanup(): void {
+    hilog.info(DOMAIN, 'WidgetCard', 'aboutToDisappear');
     VibrationService.stopVibration();
-
-    if (this.wsService) {
-      this.wsService.disconnect();
-      this.wsService = null;
-    }
-  }
-
-  private handleCardClick(): void {
-    if (!this.wsService) {
-      this.initWebSocket();
-      return;
-    }
-
-    if (this.connectionStatus === ConnectionStatus.DISCONNECTED ||
-        this.connectionStatus === ConnectionStatus.ERROR) {
-      this.wsService.connect();
-    } else if (this.connectionStatus === ConnectionStatus.CONNECTED) {
-      this.wsService.disconnect();
-    }
   }
 
   build() {
@@ -102,7 +34,7 @@ struct WidgetCard {
         Circle()
           .width(8)
           .height(8)
-          .fill(this.getStatusColor())
+          .fill('#52C41A')
 
         if (this.currentData) {
           Text(DataService.getModuleLabel(this.currentData.active_module))
@@ -127,7 +59,7 @@ struct WidgetCard {
         .margin({ left: 20, right: 20 })
 
       Column({ space: 12 }) {
-        if (this.hasReceivedData && this.currentData) {
+        if (this.currentData) {
           this.actionContent();
         } else {
           this.statusContent();
@@ -147,9 +79,6 @@ struct WidgetCard {
     .height(this.fullHeightPercent)
     .backgroundColor('#FFFFFF')
     .borderRadius(12)
-    .onClick(() => {
-      this.handleCardClick();
-    })
   }
 
   @Builder
@@ -163,6 +92,11 @@ struct WidgetCard {
         } else if (this.currentData.active_module === 'vlm') {
           this.vlmContent();
         }
+
+        VibrationService.vibrateByModule(
+          this.currentData.active_module,
+          this.currentData.dqn?.type
+        );
       }
     }
   }
@@ -322,11 +256,11 @@ struct WidgetCard {
   @Builder
   statusContent(): void {
     Column({ space: 12 }) {
-      Text(this.getStatusIcon())
+      Text('⏳')
         .fontSize(32)
-        .fontColor(this.getStatusColor())
+        .fontColor('#999999')
 
-      Text(this.getStatusDescription())
+      Text('Waiting for data...')
         .fontSize(14)
         .fontColor('#666666')
         .textAlign(TextAlign.Center)
@@ -336,63 +270,7 @@ struct WidgetCard {
     .justifyContent(FlexAlign.Center)
   }
 
-  private getStatusDescription(): string {
-    switch (this.connectionStatus) {
-      case ConnectionStatus.CONNECTING:
-        return 'Connecting to server...';
-      case ConnectionStatus.CONNECTED:
-        return this.hasReceivedData ? 'Connected' : 'Connected, waiting for data...';
-      case ConnectionStatus.DISCONNECTED:
-        return 'Disconnected from server';
-      case ConnectionStatus.ERROR:
-        return 'Connection error';
-      default:
-        return 'Disconnected';
-    }
-  }
-
-  private getStatusColor(): string {
-    switch (this.connectionStatus) {
-      case ConnectionStatus.CONNECTING:
-        return '#FAAD14';
-      case ConnectionStatus.CONNECTED:
-        return '#52C41A';
-      case ConnectionStatus.DISCONNECTED:
-        return '#999999';
-      case ConnectionStatus.ERROR:
-        return '#F5222D';
-      default:
-        return '#999999';
-    }
-  }
-
   private getStatusText(): string {
-    switch (this.connectionStatus) {
-      case ConnectionStatus.CONNECTING:
-        return 'Connecting to server...';
-      case ConnectionStatus.CONNECTED:
-        return this.hasReceivedData ? 'Tap card to disconnect' : 'Connected, tap card to disconnect';
-      case ConnectionStatus.DISCONNECTED:
-        return 'Tap card to connect';
-      case ConnectionStatus.ERROR:
-        return 'Tap card to reconnect';
-      default:
-        return 'Tap card to connect';
-    }
-  }
-
-  private getStatusIcon(): string {
-    switch (this.connectionStatus) {
-      case ConnectionStatus.CONNECTING:
-        return '⏳';
-      case ConnectionStatus.CONNECTED:
-        return '✓';
-      case ConnectionStatus.DISCONNECTED:
-        return '⊘';
-      case ConnectionStatus.ERROR:
-        return '✕';
-      default:
-        return '⊘';
-    }
+    return this.currentData ? 'Data received' : 'Waiting for data...';
   }
 }

@@ -1,17 +1,28 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { HTTPService } from '../service/HTTPService';
 
 const DOMAIN = 0x0000;
+
+const httpService = new HTTPService();
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     } catch (err) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, 'EntryAbility', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    hilog.info(DOMAIN, 'EntryAbility', 'Ability onCreate');
+
+    httpService.startServer();
+  }
+
+  onDestroy(): void {
+    hilog.info(DOMAIN, 'EntryAbility', 'Ability onDestroy');
+
+    httpService.stopServer();
   }
 
   onDestroy(): void {
