@@ -26,9 +26,9 @@ export default class EntryFormAbility extends FormExtensionAbility {
       }
 
       let dataJson = util.preferencesGet(preferences, CommonConstants.DATA_KEY, '{}') as string;
-      let data = JSON.parse(dataJson);
+      let data = JSON.parse(dataJson) as FormCardData;
 
-      let formData = new FormData(formId);
+      let formData = new FormData();
       formData.formTime = Date.now().toString();
       formData.cardList = [data];
       let formMsg = formBindingData.createFormBindingData(formData);

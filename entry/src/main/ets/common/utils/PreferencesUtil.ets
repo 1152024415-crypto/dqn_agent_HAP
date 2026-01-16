@@ -4,7 +4,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
 const TAG: string = 'PreferencesUtil';
-const MY_STORE: string = 'recommendationStore';
+const MY_STORE: string = 'recommendationStore';  // Fixed spelling
 
 export class PreferencesUtil {
   private static preferencesUtil: PreferencesUtil | null = null;
@@ -45,10 +45,10 @@ export class PreferencesUtil {
     }
   }
 
-  preferencesGet(preferences: preferences.Preferences, key: string, defaultValue: string): any {
+  preferencesGet(preferences: preferences.Preferences, key: string, defaultValue: string): string {
     try {
       if (preferences.hasSync(key)) {
-        return preferences.getSync(key, defaultValue);
+        return preferences.getSync(key, defaultValue) as string;
       }
       return defaultValue;
     } catch (error) {

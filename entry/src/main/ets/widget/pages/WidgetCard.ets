@@ -1,5 +1,6 @@
 import { DataService } from '../../service/DataService';
-import { FormCardData } from '../../common/CommonData';
+import { FormCardData, FormData } from '../../common/CommonData';
+import { VibrationService } from '../../service/VibrationService';
 
 @Entry
 @Component
@@ -12,6 +13,10 @@ struct WidgetCard {
   onUpdateForm(formData: FormData) {
     if (formData.cardList && formData.cardList.length > 0) {
       this.currentData = formData.cardList[0];
+      
+      if (this.currentData?.dqn?.type) {
+        VibrationService.vibrateByModule(this.currentData.active_module, this.currentData.dqn.type);
+      }
     }
   }
 
