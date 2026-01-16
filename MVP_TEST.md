@@ -6,8 +6,8 @@
 
 ### 1. 基础卡片展示
 - Card title: "Action Recommendation"
-- Display area: 2*2 size
-- Basic layout: Vertical column layout
+- Display area: 4*4 size
+- Enhanced layout with better spacing and visual elements
 
 ### 2. 显示内容
 - **Action Type**: Recommend action (blue) or Probe action (purple)

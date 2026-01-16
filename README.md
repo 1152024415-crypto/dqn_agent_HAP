@@ -62,7 +62,7 @@ dqnApp/
 **技术实现**:
 - 基于现有的`WidgetCard.ets`组件扩展
 - 使用`@Entry`和`@Component`装饰器
-- 卡片尺寸：2*2（可在form_config.json中配置）
+- 卡片尺寸：4*4（可在form_config.json中配置）
 
 ### 2. 网络通信模块
 #### 2.1 WebSocket服务 (WebSocketService)
@@ -131,26 +131,38 @@ dqnApp/
 ## UI设计（渐进式实现）
 
 ### 阶段一：基础文字展示（初始版本）
-**卡片布局**:
+**卡片布局** (4x4尺寸):
 ```
-┌─────────────────┐
-│ Action Recommendation│
-│                 │
-│ Type: [Recommend]│
-│ Action: transit_QR_code │
-│ Reward: 0.8     │
-│ Desc: Subway station...│
-│ Time: just now  │
-└─────────────────┘
+┌──────────────────────────────┐
+│  Action Recommendation    │
+├──────────────────────────────┤
+│  [RECOMMEND]              │
+│                           │
+│  Action                   │
+│  transit_QR_code          │
+│                           │
+│  Reward  0.80            │
+│  ▓▓▓▓▓▓▓▓░░░░░         │
+│                           │
+│  Description              │
+│  Subway station 100m ahead,│
+│  suggest opening transit   │
+│  QR code.                │
+│                           │
+│  Updated: just now        │
+│  Tap card to refresh      │
+└──────────────────────────────┘
 ```
 
 **显示内容**:
 1. **标题**: "Action Recommendation"
-2. **动作类型**: "Recommend" 或 "Probe"
+2. **动作类型**: "RECOMMEND" (蓝色) 或 "PROBE" (紫色) - 显示为标签
 3. **动作名称**: 原始action字段（如transit_QR_code）
-4. **奖励值**: reward数值显示
-5. **描述**: 截断显示前20个字符
-6. **时间**: 相对时间（just now、X minutes ago）
+4. **奖励值**: reward数值显示（绿色大字体）
+5. **进度条**: 可视化展示奖励值（0-100%）
+6. **描述**: 完整显示描述文本（最多3行）
+7. **时间**: 相对时间（just now、X minutes ago）
+8. **提示**: 底部显示点击刷新提示
 
 **设计原则**:
 - 简单文字，无复杂样式
@@ -378,7 +390,7 @@ interface CardState {
 
 ### 技术约束
 1. **单客户端连接**: 服务器只支持单个WebSocket客户端连接
-2. **卡片尺寸限制**: 2*2卡片空间有限
+2. **卡片尺寸**: 4*4卡片提供更多展示空间
 3. **系统资源**: 卡片资源使用受限
 4. **本地服务器**: 测试需要本地运行Python服务器
 
@@ -436,7 +448,7 @@ interface CardState {
 ## 需要确认的关键点
 
 1. **服务器地址**: 确认使用 `0.0.0.0:8080` 还是其他地址？
-2. **卡片尺寸**: 当前配置为2*2，是否需要支持其他尺寸？
+2. **卡片尺寸**: 当前配置为4*4，是否需要支持其他尺寸？
 3. **数据展示**: 是否需要为action字段提供中文翻译显示？
 4. **震动模式**: 是否需要区分推荐/探测动作的不同震动？
 5. **测试数据**: 是否需要内置测试按钮发送模拟数据？

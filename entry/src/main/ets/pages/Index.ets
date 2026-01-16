@@ -22,9 +22,9 @@ struct Index {
         Column({ space: 16 }) {
           this.instructionItem('1', 'Long press on empty space of your home screen')
           this.instructionItem('2', 'Tap "Widgets" or "Cards" option')
-          this.instructionItem('3', 'Find and select "Action Recommendation"')
-          this.instructionItem('4', 'Place the card on your home screen')
-          this.instructionItem('5', 'Click the card to test interaction')
+          this.instructionItem('3', 'Find and select "Action Recommendation" (4x4 size)')
+          this.instructionItem('4', 'Place card on your home screen')
+          this.instructionItem('5', 'Click card to test interaction')
         }
         .alignRules({
           top: { anchor: 'Title', align: VerticalAlign.Bottom },

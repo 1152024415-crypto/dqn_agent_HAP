@@ -28,8 +28,8 @@
    - 在弹出的菜单中选择"小部件"或"卡片"选项
 
 3. **找到"Action Recommendation"卡片**
-   - 滚动找到"Action Recommendation"卡片
-   - 卡片尺寸为2*2
+    - 滚动找到"Action Recommendation"卡片
+    - 卡片尺寸为4*4
 
 4. **添加到桌面**
    - 点击卡片将其添加到桌面
@@ -90,7 +90,7 @@
 ### 应用配置
 - **应用名称**: Action Recommendation
 - **包名**: com.example.myapplication
-- **卡片尺寸**: 2*2
+- **卡片尺寸**: 4*4
 - **支持平台**: HarmonyOS 6.0.2(22)+
 
 ### 卡片特性
