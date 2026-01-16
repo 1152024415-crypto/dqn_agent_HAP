@@ -40,26 +40,42 @@ export class HTTPService {
           hilog.error(DOMAIN, 'HTTPService', 'Listen failed: %{public}s', JSON.stringify(err));
           this.isRunning = false;
         } else {
-          hilog.info(DOMAIN, 'HTTPService', 'Server started successfully');
+          hilog.info(DOMAIN, 'HTTPService', 'Server started successfully, listening on 0.0.0.0:8080');
           this.isRunning = true;
         }
       });
 
       this.tcpServer.on('connect', (clientSocket: socket.TCPSocketConnection) => {
-        hilog.info(DOMAIN, 'HTTPService', 'New client connected');
+        try {
+          const clientAddress = this.getClientAddress(clientSocket);
+          hilog.info(DOMAIN, 'HTTPService', 'New client connected from: %{public}s', clientAddress);
+        } catch (error) {
+          hilog.error(DOMAIN, 'HTTPService', 'Failed to get client address: %{public}s', JSON.stringify(error));
+        }
+
+        let requestData = '';
 
         clientSocket.on('message', (msgInfo: socket.SocketMessageInfo) => {
           try {
             const requestString = this.arrayBufferToString(msgInfo.message);
-            hilog.info(DOMAIN, 'HTTPService', 'Received request: %{public}s', requestString.substring(0, 200));
+            requestData += requestString;
+            hilog.info(DOMAIN, 'HTTPService', 'Received request data: %{public}s', requestString.substring(0, Math.min(200, requestString.length)));
 
             const response = this.handleRequest(requestString);
             clientSocket.send({ data: response });
 
-            hilog.info(DOMAIN, 'HTTPService', 'Response sent');
+            hilog.info(DOMAIN, 'HTTPService', 'Response sent: %{public}s', response.substring(0, 100));
           } catch (error) {
             hilog.error(DOMAIN, 'HTTPService', 'Error handling request: %{public}s', JSON.stringify(error));
           }
+        });
+
+        clientSocket.on('close', () => {
+          hilog.info(DOMAIN, 'HTTPService', 'Client disconnected (normal close)');
+        });
+
+        clientSocket.on('error', (error: Error) => {
+          hilog.error(DOMAIN, 'HTTPService', 'Client socket error: %{public}s', JSON.stringify(error));
         });
       });
 
@@ -82,11 +98,24 @@ export class HTTPService {
     }
   }
 
+  private getClientAddress(clientSocket: socket.TCPSocketConnection): string {
+    try {
+      const remoteAddress = clientSocket.getRemoteAddress();
+      if (remoteAddress && remoteAddress.address) {
+        return `${remoteAddress.address}:${remoteAddress.port}`;
+      }
+      return 'unknown';
+    } catch (error) {
+      hilog.error(DOMAIN, 'HTTPService', 'Failed to get client address: %{public}s', JSON.stringify(error));
+      return 'unknown';
+    }
+  }
+
   private handleRequest(request: string): string {
     try {
       const lines = request.split('\r\n');
       if (lines.length === 0) {
-        return this.buildResponse(400, 'Bad Request');
+        return this.buildResponse(400, 'Bad Request - Empty request');
       }
 
       const requestLine = lines[0];
@@ -94,11 +123,11 @@ export class HTTPService {
 
       const parts = requestLine.split(' ');
       if (parts.length < 2) {
-        return this.buildResponse(400, 'Bad Request');
+        return this.buildResponse(400, 'Bad Request - Invalid request line');
       }
 
       const method = parts[0];
-      const path = parts[1];
+      const path = parts.length > 1 ? parts[1] : '';
 
       if (method !== 'POST') {
         hilog.warn(DOMAIN, 'HTTPService', 'Unsupported method: %{public}s', method);
@@ -106,7 +135,7 @@ export class HTTPService {
       }
 
       if (path !== '/jsonUpload') {
-        hilog.warn(DOMAIN, 'HTTPService', 'Not found: %{public}s', path);
+        hilog.warn(DOMAIN, 'HTTPService', 'Invalid path: %{public}s (expected /jsonUpload)', path);
         return this.buildResponse(404, 'Not Found');
       }
 
@@ -116,13 +145,13 @@ export class HTTPService {
         return this.buildResponse(400, 'Bad Request - Empty body');
       }
 
-      hilog.info(DOMAIN, 'HTTPService', 'Received JSON: %{public}s', body);
+      hilog.info(DOMAIN, 'HTTPService', 'Request body length: %{public}d', body.length);
 
       const data = DataService.parseRecommendationData(body);
 
       if (data) {
         this.saveToPreferences(data);
-        hilog.info(DOMAIN, 'HTTPService', 'Data saved to Preferences');
+        hilog.info(DOMAIN, 'HTTPService', 'Data saved to Preferences successfully');
         return this.buildResponse(200, 'OK');
       } else {
         hilog.error(DOMAIN, 'HTTPService', 'Invalid JSON data');
@@ -138,7 +167,8 @@ export class HTTPService {
   private extractBody(request: string): string | null {
     const emptyLineIndex = request.indexOf('\r\n\r\n');
     if (emptyLineIndex === -1) {
-      return null;
+      hilog.warn(DOMAIN, 'HTTPService', 'Request has no body separator (\\r\\n\\r\\n)');
+      return '';
     }
 
     return request.substring(emptyLineIndex + 4);
@@ -157,6 +187,7 @@ export class HTTPService {
       if (preferences) {
         const jsonString = JSON.stringify(data);
         util.preferencesPut(preferences, CommonConstants.DATA_KEY, jsonString);
+        hilog.info(DOMAIN, 'HTTPService', 'Saved JSON to Preferences: %{public}s', jsonString.substring(0, 200));
       }
     } catch (error) {
       hilog.error(DOMAIN, 'HTTPService', 'Failed to save to Preferences: %{public}s', JSON.stringify(error));
