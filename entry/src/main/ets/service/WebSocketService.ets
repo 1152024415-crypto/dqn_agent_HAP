@@ -42,17 +42,17 @@ export class WebSocketService {
 
     try {
       this.ws = webSocket.createWebSocket();
-      
+
       this.ws.on('open', () => {
-        hilog.info(DOMAIN, 'WebSocketService', 'WebSocket connected to %{public}s', this.serverUrl);
+        hilog.info(DOMAIN, 'WebSocketService', 'WebSocket connected to ${public}', this.serverUrl);
         this.reconnectAttempts = 0;
         this.updateStatus(ConnectionStatus.CONNECTED);
       });
 
-      this.ws.on('message', (data: string | ArrayBuffer) => {
-        if (typeof data === 'string' && this.messageCallback) {
-          hilog.info(DOMAIN, 'WebSocketService', 'Received message: %{public}s', data);
-          this.messageCallback(data);
+      this.ws.on('message', (err: BusinessError<void>, value: string | ArrayBuffer) => {
+        if (typeof value === 'string' && this.messageCallback) {
+          hilog.info(DOMAIN, 'WebSocketService', 'Received message: ${public}', value);
+          this.messageCallback(value);
         }
       });
 
@@ -68,7 +68,7 @@ export class WebSocketService {
       });
 
       this.ws.on('error', (err: Error) => {
-        hilog.error(DOMAIN, 'WebSocketService', 'WebSocket error: %{public}s', JSON.stringify(err));
+        hilog.error(DOMAIN, 'WebSocketService', 'WebSocket error: ${public}', JSON.stringify(err));
         this.updateStatus(ConnectionStatus.ERROR);
         this.ws = null;
       });
@@ -76,7 +76,7 @@ export class WebSocketService {
       this.ws.connect(this.serverUrl);
       
     } catch (error) {
-      hilog.error(DOMAIN, 'WebSocketService', 'Connection error: %{public}s', JSON.stringify(error));
+      hilog.error(DOMAIN, 'WebSocketService', 'Connection error: ${public}', JSON.stringify(error));
       this.updateStatus(ConnectionStatus.ERROR);
     }
   }
@@ -94,9 +94,9 @@ export class WebSocketService {
       try {
         this.ws.close();
         this.ws = null;
-        hilog.info(DOMAIN, 'WebSocketService', 'WebSocket disconnected');
+        console.log('WebSocketService: Disconnected');
       } catch (error) {
-        hilog.error(DOMAIN, 'WebSocketService', 'Disconnect error: %{public}s', JSON.stringify(error));
+        console.error(`WebSocketService: Disconnect error - ${JSON.stringify(error)}`);
       }
     }
 
@@ -110,10 +110,9 @@ export class WebSocketService {
   private scheduleReconnect(): void {
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
-    
-    hilog.info(DOMAIN, 'WebSocketService', 'Reconnecting in %{public}d ms (attempt %{public}d/%{public}d)', 
-      delay, this.reconnectAttempts, this.maxReconnectAttempts);
-    
+
+    console.log(`WebSocketService: Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+
     this.reconnectTimer = setTimeout(() => {
       this.connect();
     }, delay);

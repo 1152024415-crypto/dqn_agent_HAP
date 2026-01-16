@@ -1,5 +1,5 @@
-import { WebSocketService, ConnectionStatus } from '../service/WebSocketService';
-import { DataService, ActionData } from '../service/DataService';
+import { WebSocketService, ConnectionStatus } from '../../service/WebSocketService';
+import { DataService, ActionData } from '../../service/DataService';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
@@ -25,13 +25,13 @@ struct WidgetCard {
 
   // 组件创建时初始化
   aboutToAppear(): void {
-    hilog.info(DOMAIN, 'WidgetCard', 'WidgetCard aboutToAppear');
+    console.log('WidgetCard: aboutToAppear');
     this.initWebSocket();
   }
 
   // 组件销毁时清理
   aboutToDisappear(): void {
-    hilog.info(DOMAIN, 'WidgetCard', 'WidgetCard aboutToDisappear');
+    console.log('WidgetCard: aboutToDisappear');
     this.cleanup();
   }
 
@@ -60,7 +60,7 @@ struct WidgetCard {
    * 处理接收到的消息
    */
   private handleMessage(jsonString: string): void {
-    hilog.info(DOMAIN, 'WidgetCard', 'Received message: %{public}s', jsonString);
+    console.log(`WidgetCard: Received message: ${jsonString}`);
 
     // 解析数据
     const actionData = DataService.parseActionData(jsonString);
@@ -73,10 +73,10 @@ struct WidgetCard {
       this.description = actionData.metadata.description;
       this.lastUpdate = DataService.formatTime(actionData.timestamp);
       this.hasReceivedData = true;
-      
-      hilog.info(DOMAIN, 'WidgetCard', 'Updated card with action: %{public}s', actionData.action);
+
+      console.log(`WidgetCard: Updated card with action: ${actionData.action}`);
     } else {
-      hilog.warn(DOMAIN, 'WidgetCard', 'Failed to parse message');
+      console.warn('WidgetCard: Failed to parse message');
     }
   }
 
@@ -116,8 +116,8 @@ struct WidgetCard {
    * 处理卡片点击 - 重新连接或断开
    */
   private handleCardClick(): void {
-    hilog.info(DOMAIN, 'WidgetCard', 'Card clicked, current status: %{public}s', this.connectionStatus);
-    
+    console.log(`WidgetCard: Card clicked, current status: ${this.connectionStatus}`);
+
     if (!this.wsService) {
       this.initWebSocket();
       return;

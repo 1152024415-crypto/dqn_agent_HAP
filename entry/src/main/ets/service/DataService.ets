@@ -1,6 +1,10 @@
-import { hilog } from '@kit.PerformanceAnalysisKit';
-
-const DOMAIN = 0x0000;
+/**
+ * 元数据接口
+ */
+export interface ActionMetadata {
+  reward: number;
+  description: string;
+}
 
 /**
  * 动作数据接口
@@ -10,10 +14,18 @@ export interface ActionData {
   type: 'recommend' | 'probe';
   action: string;
   timestamp: number;
-  metadata: {
-    reward: number;
-    description: string;
-  };
+  metadata: ActionMetadata;
+}
+
+/**
+ * JSON数据接口（用于解析）
+ */
+interface JsonData {
+  id?: string;
+  type?: string;
+  action?: string;
+  timestamp?: number;
+  metadata?: ActionMetadata;
 }
 
 /**
@@ -25,36 +37,37 @@ export class DataService {
    */
   static parseActionData(jsonString: string): ActionData | null {
     try {
-      const data = JSON.parse(jsonString);
-      
+      const data: JsonData = JSON.parse(jsonString);
+
       // 验证必要字段
       if (!data.id || !data.type || !data.action || !data.metadata) {
-        hilog.warn(DOMAIN, 'DataService', 'Missing required fields in data');
+        console.warn('DataService: Missing required fields in data');
         return null;
       }
 
       // 验证type字段
       if (data.type !== 'recommend' && data.type !== 'probe') {
-        hilog.warn(DOMAIN, 'DataService', 'Invalid type: %{public}s', data.type);
+        console.warn(`DataService: Invalid type: ${data.type}`);
         return null;
       }
 
       // 验证metadata字段
       if (!data.metadata.reward || !data.metadata.description) {
-        hilog.warn(DOMAIN, 'DataService', 'Missing metadata fields');
+        console.warn('DataService: Missing metadata fields');
         return null;
       }
 
-      // 验证reward范围
-      if (typeof data.metadata.reward !== 'number' || data.metadata.reward < 0 || data.metadata.reward > 1) {
-        hilog.warn(DOMAIN, 'DataService', 'Invalid reward value: %{public}s', data.metadata.reward);
-        return null;
-      }
-
-      return data as ActionData;
+      // 构建ActionData对象
+      return {
+        id: data.id,
+        type: data.type,
+        action: data.action,
+        timestamp: data.timestamp,
+        metadata: data.metadata
+      };
 
     } catch (error) {
-      hilog.error(DOMAIN, 'DataService', 'JSON parse error: %{public}s', JSON.stringify(error));
+      console.error(`DataService: JSON parse error - ${JSON.stringify(error)}`);
       return null;
     }
   }
