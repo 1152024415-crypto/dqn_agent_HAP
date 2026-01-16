@@ -1,3 +1,7 @@
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const DOMAIN = 0x0000;
+
 /**
  * Rule Engine data interface
  */
@@ -61,31 +65,31 @@ export class DataService {
 
       // Validate required fields
       if (!data.id || !data.timestamp || !data.active_module) {
-        console.warn('DataService: Missing required fields in data');
+        hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing required fields in data');
         return null;
       }
 
       // Validate active_module field
-      if (data.active_module !== 'rule_engine' && 
-          data.active_module !== 'dqn' && 
+      if (data.active_module !== 'rule_engine' &&
+          data.active_module !== 'dqn' &&
           data.active_module !== 'vlm') {
-        console.warn(`DataService: Invalid active_module: ${data.active_module}`);
+        hilog.warn(DOMAIN, 'DataServiceHAP', 'Invalid active_module: %{public}s', data.active_module);
         return null;
       }
 
       // Validate module data based on active_module
       if (data.active_module === 'rule_engine' && !data.rule_engine) {
-        console.warn('DataService: Missing rule_engine data');
+        hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing rule_engine data');
         return null;
       }
 
       if (data.active_module === 'dqn' && !data.dqn) {
-        console.warn('DataService: Missing dqn data');
+        hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing dqn data');
         return null;
       }
 
       if (data.active_module === 'vlm' && (!data.dqn || !data.vlm)) {
-        console.warn('DataService: Missing dqn or vlm data for vlm module');
+        hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing dqn or vlm data for vlm module');
         return null;
       }
 
@@ -99,7 +103,7 @@ export class DataService {
       };
 
     } catch (error) {
-      console.error(`DataService: JSON parse error - ${JSON.stringify(error)}`);
+      hilog.error(DOMAIN, 'DataServiceHAP', 'JSON parse error - %{public}s', JSON.stringify(error));
       return null;
     }
   }

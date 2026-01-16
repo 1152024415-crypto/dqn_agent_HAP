@@ -1,4 +1,7 @@
 import { webSocket } from '@kit.NetworkKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const DOMAIN = 0x0000;
 
 /**
  * WebSocket连接状态枚举
@@ -30,31 +33,36 @@ export class WebSocketService {
    * 连接到WebSocket服务器
    */
   connect(): void {
+    hilog.info(DOMAIN, 'WebSocketServiceHAP', 'try connect');
     if (this.ws) {
-      console.log('WebSocketService: Already connected');
+      hilog.warn(DOMAIN, 'WebSocketServiceHAP', 'Already connected');
       return;
     }
 
     this.updateStatus(ConnectionStatus.CONNECTING);
 
     try {
-      this.ws = webSocket.createWebSocket();
+      hilog.info(DOMAIN, 'WebSocketServiceHAP', 'webSocket creating');
+      if (this.ws == null) {
+        this.ws = webSocket.createWebSocket();
+      }
+      hilog.info(DOMAIN, 'WebSocketServiceHAP', 'webSocket created, connecting to %{public}s', this.serverUrl);
 
       this.ws.on('open', () => {
-        console.log(`WebSocketService: Connected to ${this.serverUrl}`);
+        hilog.info(DOMAIN, 'WebSocketServiceHAP', 'Connected to %{public}s', this.serverUrl);
         this.reconnectAttempts = 0;
         this.updateStatus(ConnectionStatus.CONNECTED);
       });
 
       this.ws.on('message', (err: BusinessError<void>, value: string | ArrayBuffer) => {
         if (typeof value === 'string' && this.messageCallback) {
-          console.log(`WebSocketService: Received message: ${value}`);
+          hilog.info(DOMAIN, 'WebSocketServiceHAP', 'Received message: %{public}s', value);
           this.messageCallback(value);
         }
       });
 
       this.ws.on('close', () => {
-        console.log('WebSocketService: Closed');
+        hilog.info(DOMAIN, 'WebSocketServiceHAP', 'Closed');
         this.updateStatus(ConnectionStatus.DISCONNECTED);
         this.ws = null;
 
@@ -65,15 +73,21 @@ export class WebSocketService {
       });
 
       this.ws.on('error', (err: Error) => {
-        console.error(`WebSocketService: Error - ${JSON.stringify(err)}`);
+        hilog.error(DOMAIN, 'WebSocketServiceHAP', 'Error - %{public}s', JSON.stringify(err));
         this.updateStatus(ConnectionStatus.ERROR);
         this.ws = null;
       });
 
-      this.ws.connect(this.serverUrl);
+      this.ws.connect(this.serverUrl, (err: BusinessError, value: boolean) => {
+        if (!err) {
+          hilog.info(DOMAIN, 'WebSocketServiceHAP', "connect success")
+        } else {
+          hilog.error(DOMAIN, 'WebSocketServiceHAP', `connect fail. Code: ${err.code}, message: ${err.message}`)
+        }
+      });
 
     } catch (error) {
-      console.error(`WebSocketService: Connection error - ${JSON.stringify(error)}`);
+      hilog.error(DOMAIN, 'WebSocketServiceHAP', 'Connection error - %{public}s', JSON.stringify(error));
       this.updateStatus(ConnectionStatus.ERROR);
     }
   }
@@ -91,9 +105,9 @@ export class WebSocketService {
       try {
         this.ws.close();
         this.ws = null;
-        console.log('WebSocketService: Disconnected');
+        hilog.info(DOMAIN, 'WebSocketServiceHAP', 'Disconnected');
       } catch (error) {
-        console.error(`WebSocketService: Disconnect error - ${JSON.stringify(error)}`);
+        hilog.error(DOMAIN, 'WebSocketServiceHAP', 'Disconnect error - %{public}s', JSON.stringify(error));
       }
     }
 
@@ -108,7 +122,7 @@ export class WebSocketService {
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
 
-    console.log(`WebSocketService: Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    hilog.info(DOMAIN, 'WebSocketServiceHAP', 'Reconnecting in %{public}dms (attempt %{public}d/%{public}d)', delay, this.reconnectAttempts, this.maxReconnectAttempts);
 
     this.reconnectTimer = setTimeout(() => {
       this.connect();

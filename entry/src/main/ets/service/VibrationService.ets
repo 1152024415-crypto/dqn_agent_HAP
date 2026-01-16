@@ -1,4 +1,7 @@
 import vibrator from '@ohos.vibrator';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const DOMAIN = 0x0000;
 
 /**
  * Vibration level enumeration
@@ -35,7 +38,7 @@ export class VibrationService {
         VibrationService.doubleVibration();
       }
     } catch (error) {
-      console.error(`VibrationService: Vibration error - ${JSON.stringify(error)}`);
+      hilog.error(DOMAIN, 'VibrationService', 'Vibration error - %{public}s', JSON.stringify(error));
     }
   }
 
@@ -51,9 +54,9 @@ export class VibrationService {
         usage: 'notification'
       });
 
-      console.log(`VibrationService: Single vibration ${duration}ms for ${label}`);
+      hilog.info(DOMAIN, 'VibrationService', 'Single vibration %{public}dms for %{public}s', duration, label);
     } catch (error) {
-      console.error(`VibrationService: Single vibration error - ${JSON.stringify(error)}`);
+      hilog.error(DOMAIN, 'VibrationService', 'Single vibration error - %{public}s', JSON.stringify(error));
     }
   }
 
@@ -70,9 +73,9 @@ export class VibrationService {
         usage: 'notification'
       });
 
-      console.log('VibrationService: Double vibration for VLM');
+      hilog.info(DOMAIN, 'VibrationService', 'Double vibration for VLM');
     } catch (error) {
-      console.error(`VibrationService: Double vibration error - ${JSON.stringify(error)}`);
+      hilog.error(DOMAIN, 'VibrationService', 'Double vibration error - %{public}s', JSON.stringify(error));
     }
   }
 
@@ -82,9 +85,9 @@ export class VibrationService {
   static stopVibration(): void {
     try {
       vibrator.stopVibration();
-      console.log('VibrationService: Vibration stopped');
+      hilog.info(DOMAIN, 'VibrationService', 'Vibration stopped');
     } catch (error) {
-      console.error(`VibrationService: Stop error - ${JSON.stringify(error)}`);
+      hilog.error(DOMAIN, 'VibrationService', 'Stop error - %{public}s', JSON.stringify(error));
     }
   }
 }

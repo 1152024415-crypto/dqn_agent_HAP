@@ -2,6 +2,8 @@ import { WebSocketService, ConnectionStatus } from '../../service/WebSocketServi
 import { DataService, RecommendationData } from '../../service/DataService';
 import { VibrationService } from '../../service/VibrationService';
 
+const DOMAIN = 0x0000;
+
 @Entry
 @Component
 struct WidgetCard {
@@ -15,12 +17,10 @@ struct WidgetCard {
   readonly fullHeightPercent: string = '100%';
 
   aboutToAppear(): void {
-    console.log('WidgetCard: aboutToAppear');
     this.initWebSocket();
   }
 
   aboutToDisappear(): void {
-    console.log('WidgetCard: aboutToDisappear');
     this.cleanup();
   }
 
@@ -40,7 +40,6 @@ struct WidgetCard {
   }
 
   private handleMessage(jsonString: string): void {
-    console.log(`WidgetCard: Received message: ${jsonString}`);
 
     const recommendationData = DataService.parseRecommendationData(jsonString);
 
@@ -48,14 +47,10 @@ struct WidgetCard {
       this.currentData = recommendationData;
       this.hasReceivedData = true;
 
-      console.log(`WidgetCard: Updated card with module: ${recommendationData.active_module}`);
-
       VibrationService.vibrateByModule(
         recommendationData.active_module,
         recommendationData.dqn?.type
       );
-    } else {
-      console.warn('WidgetCard: Failed to parse message');
     }
   }
 
@@ -74,7 +69,6 @@ struct WidgetCard {
 
   private cleanup(): void {
     VibrationService.stopVibration();
-    console.log('WidgetCard: Stopped vibration');
 
     if (this.wsService) {
       this.wsService.disconnect();
@@ -83,14 +77,12 @@ struct WidgetCard {
   }
 
   private handleCardClick(): void {
-    console.log(`WidgetCard: Card clicked, current status: ${this.connectionStatus}`);
-
     if (!this.wsService) {
       this.initWebSocket();
       return;
     }
 
-    if (this.connectionStatus === ConnectionStatus.DISCONNECTED || 
+    if (this.connectionStatus === ConnectionStatus.DISCONNECTED ||
         this.connectionStatus === ConnectionStatus.ERROR) {
       this.wsService.connect();
     } else if (this.connectionStatus === ConnectionStatus.CONNECTED) {
