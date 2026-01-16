@@ -22,11 +22,11 @@
     },
     {
       "name": "widget_desc",
-      "value": "This is a service widget."
+      "value": "Smart action recommendation card, displays recommended actions in real-time."
     },
     {
       "name": "widget_display_name",
-      "value": "widget"
+      "value": "Action Recommendation"
     }
   ]
 }
