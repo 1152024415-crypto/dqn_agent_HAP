@@ -5,7 +5,7 @@ import { HTTPService } from '../service/HTTPService';
 
 const DOMAIN = 0x0000;
 
-const httpService = new HTTPService();
+let httpService: HTTPService | null = null;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -16,17 +16,16 @@ export default class EntryAbility extends UIAbility {
     }
     hilog.info(DOMAIN, 'EntryAbility', 'Ability onCreate');
 
+    httpService = new HTTPService(this.context);
     httpService.startServer();
   }
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'EntryAbility', 'Ability onDestroy');
 
-    httpService.stopServer();
-  }
-
-  onDestroy(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    if (httpService) {
+      httpService.stopServer();
+    }
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {

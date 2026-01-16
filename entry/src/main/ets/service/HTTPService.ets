@@ -2,7 +2,8 @@ import { socket } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { util } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { DataService, RecommendationData } from './DataService';
+import { common } from '@kit.AbilityKit';
+import { fs } from '@kit.CoreFileKit';
 
 const DOMAIN = 0x0000;
 
@@ -12,6 +13,11 @@ const DOMAIN = 0x0000;
 export class HTTPService {
   private tcpServer: socket.TCPSocketServer | null = null;
   private isRunning: boolean = false;
+  private context: common.UIAbilityContext | null = null;
+
+  constructor(context: common.UIAbilityContext) {
+    this.context = context;
+  }
 
   /**
    * 启动HTTP服务器
@@ -130,9 +136,9 @@ export class HTTPService {
       const data = DataService.parseRecommendationData(body);
 
       if (data) {
-        // 更新AppStorage
-        AppStorage.setOrCreate('recommendationData', data);
-        hilog.info(DOMAIN, 'HTTPService', 'Data updated in AppStorage, Widget will auto-refresh');
+        // 写入文件
+        this.writeDataToFile(body);
+        hilog.info(DOMAIN, 'HTTPService', 'Data written to file, Widget will read and update');
         return this.buildResponse(200, 'OK');
       } else {
         hilog.error(DOMAIN, 'HTTPService', 'Invalid JSON data');
@@ -156,6 +162,31 @@ export class HTTPService {
     }
 
     return request.substring(emptyLineIndex + 4);
+  }
+
+  /**
+   * 写入数据到文件
+   */
+  private writeDataToFile(jsonString: string): void {
+    if (!this.context) {
+      hilog.error(DOMAIN, 'HTTPService', 'Context is null, cannot write to file');
+      return;
+    }
+
+    try {
+      const filesDir = this.context.filesDir;
+      const filePath = `${filesDir}/latest_recommendation.json`;
+
+      const file = fs.openSync(filePath, fs.OpenMode.CREATE | fs.OpenMode.TRUNC | fs.OpenMode.WRITE_ONLY);
+      const textEncoder = new util.TextEncoder();
+      const writeBuffer = textEncoder.encodeInto(jsonString);
+      fs.writeSync(file.fd, writeBuffer);
+      fs.closeSync(file);
+
+      hilog.info(DOMAIN, 'HTTPService', 'Data written to: %{public}s', filePath);
+    } catch (error) {
+      hilog.error(DOMAIN, 'HTTPService', 'Failed to write to file: %{public}s', JSON.stringify(error));
+    }
   }
 
   /**

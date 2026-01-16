@@ -1,25 +1,84 @@
 import { DataService, RecommendationData } from '../../service/DataService';
 import { VibrationService } from '../../service/VibrationService';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { common } from '@kit.AbilityKit';
+import { fs } from '@kit.CoreFileKit';
+import { util } from '@kit.ArkTS';
 
 const DOMAIN = 0x0000;
 
 @Entry
 @Component
 struct WidgetCard {
-  @StorageLink('recommendationData') currentData: RecommendationData | null = null;
-  @State hasReceivedData: boolean = false;
+  @State currentData: RecommendationData | null = null;
+  @State lastJsonString: string = '';
+  private fileReadTimer: number = -1;
+  private context: common.FormAbilityContext | null = null;
 
   readonly fullWidthPercent: string = '100%';
   readonly fullHeightPercent: string = '100%';
 
   aboutToAppear(): void {
     hilog.info(DOMAIN, 'WidgetCard', 'aboutToAppear');
+    this.context = this.getUIContext().getHostContext() as common.FormAbilityContext;
+
+    this.startFileMonitoring();
   }
 
   aboutToDisappear(): void {
     hilog.info(DOMAIN, 'WidgetCard', 'aboutToDisappear');
+
+    this.stopFileMonitoring();
     VibrationService.stopVibration();
+  }
+
+  private startFileMonitoring(): void {
+    this.readFileData();
+
+    this.fileReadTimer = setInterval(() => {
+      this.readFileData();
+    }, 2000);
+  }
+
+  private stopFileMonitoring(): void {
+    if (this.fileReadTimer !== -1) {
+      clearInterval(this.fileReadTimer);
+      this.fileReadTimer = -1;
+    }
+  }
+
+  private readFileData(): void {
+    if (!this.context) {
+      hilog.warn(DOMAIN, 'WidgetCard', 'Context is null');
+      return;
+    }
+
+    try {
+      const filesDir = this.context.filesDir;
+      const filePath = `${filesDir}/latest_recommendation.json`;
+
+      const file = fs.openSync(filePath, fs.OpenMode.READ_ONLY);
+      const buffer = new ArrayBuffer(1024);
+      const readLen = fs.readSync(file.fd, buffer);
+      fs.closeSync(file);
+
+      const textDecoder = util.TextDecoder.create('utf-8');
+      const uint8Array = new Uint8Array(buffer, 0, readLen);
+      const jsonString = textDecoder.decodeWithStream(uint8Array);
+
+      if (jsonString !== this.lastJsonString) {
+        this.lastJsonString = jsonString;
+        const data = DataService.parseRecommendationData(jsonString);
+
+        if (data) {
+          this.currentData = data;
+          VibrationService.vibrateByModule(data.active_module, data.dqn?.type);
+          hilog.info(DOMAIN, 'WidgetCard', 'Data updated: %{public}s', data.active_module);
+        }
+      }
+    } catch (error) {
+      hilog.warn(DOMAIN, 'WidgetCard', 'File read error: %{public}s', JSON.stringify(error));
+    }
   }
 
   build() {
@@ -92,11 +151,6 @@ struct WidgetCard {
         } else if (this.currentData.active_module === 'vlm') {
           this.vlmContent();
         }
-
-        VibrationService.vibrateByModule(
-          this.currentData.active_module,
-          this.currentData.dqn?.type
-        );
       }
     }
   }
