@@ -27,6 +27,14 @@
     {
       "name": "widget_display_name",
       "value": "Action Recommendation"
+    },
+    {
+      "name": "permission_internet_reason",
+      "value": "Need network access to connect to server"
+    },
+    {
+      "name": "permission_vibrate_reason",
+      "value": "Need vibration feedback when receiving new action recommendations"
     }
   ]
 }

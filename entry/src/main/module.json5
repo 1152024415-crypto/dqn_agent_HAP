@@ -62,7 +62,7 @@
     "requestPermissions": [
       {
         "name": "ohos.permission.INTERNET",
-        "reason": "Need network access to connect to server",
+        "reason": "$string:permission_internet_reason",
         "usedScene": {
           "abilities": ["EntryAbility"],
           "when": "inuse"
@@ -70,7 +70,7 @@
       },
       {
         "name": "ohos.permission.VIBRATE",
-        "reason": "Need vibration feedback when receiving new action recommendations",
+        "reason": "$string:permission_vibrate_reason",
         "usedScene": {
           "abilities": ["EntryAbility"],
           "when": "inuse"
