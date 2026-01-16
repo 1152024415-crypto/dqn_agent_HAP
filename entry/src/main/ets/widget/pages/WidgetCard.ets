@@ -1,5 +1,7 @@
 import { WebSocketService, ConnectionStatus } from '../../service/WebSocketService';
 import { DataService, ActionData } from '../../service/DataService';
+import { VibrationService, VibrationMode } from '../../service/VibrationService';
+import { common } from '@kit.AbilityKit';
 
 @Entry
 @Component
@@ -23,6 +25,7 @@ struct WidgetCard {
   // 组件创建时初始化
   aboutToAppear(): void {
     console.log('WidgetCard: aboutToAppear');
+    this.initVibration();
     this.initWebSocket();
   }
 
@@ -30,6 +33,18 @@ struct WidgetCard {
   aboutToDisappear(): void {
     console.log('WidgetCard: aboutToDisappear');
     this.cleanup();
+  }
+
+  /**
+   * 初始化震动服务
+   */
+  private async initVibration(): Promise<void> {
+    try {
+      await VibrationService.ensurePermission(getContext(this) as common.UIAbilityContext);
+      console.log('WidgetCard: Vibration service initialized');
+    } catch (error) {
+      console.error(`WidgetCard: Vibration init error - ${JSON.stringify(error)}`);
+    }
   }
 
   /**
@@ -47,6 +62,7 @@ struct WidgetCard {
     this.wsService.onStatusChange((status: ConnectionStatus) => {
       this.connectionStatus = status;
       this.updateStatusUI(status);
+      this.handleStatusChange(status);
     });
 
     // 连接服务器
@@ -61,7 +77,7 @@ struct WidgetCard {
 
     // 解析数据
     const actionData = DataService.parseActionData(jsonString);
-    
+
     if (actionData) {
       // 更新卡片显示
       this.currentAction = actionData.action;
@@ -72,8 +88,24 @@ struct WidgetCard {
       this.hasReceivedData = true;
 
       console.log(`WidgetCard: Updated card with action: ${actionData.action}`);
+
+      // 根据动作类型触发震动
+      this.triggerActionVibration(actionData.type);
     } else {
       console.warn('WidgetCard: Failed to parse message');
+    }
+  }
+
+  /**
+   * 根据动作类型触发震动
+   */
+  private triggerActionVibration(actionType: string): void {
+    if (actionType === 'recommend') {
+      VibrationService.vibrate(VibrationMode.RECOMMEND);
+      console.log('WidgetCard: Triggered recommend vibration');
+    } else if (actionType === 'probe') {
+      VibrationService.vibrate(VibrationMode.PROBE);
+      console.log('WidgetCard: Triggered probe vibration');
     }
   }
 
@@ -100,9 +132,36 @@ struct WidgetCard {
   }
 
   /**
+   * 处理连接状态变化
+   */
+  private handleStatusChange(status: ConnectionStatus): void {
+    switch (status) {
+      case ConnectionStatus.CONNECTED:
+        // 连接成功，触发短震动
+        VibrationService.vibrate(VibrationMode.CONNECTED);
+        break;
+      case ConnectionStatus.ERROR:
+        // 连接错误，触发错误震动
+        VibrationService.vibrate(VibrationMode.ERROR);
+        break;
+      case ConnectionStatus.DISCONNECTED:
+        // 连接断开，不触发震动
+        break;
+      case ConnectionStatus.CONNECTING:
+        // 连接中，不触发震动
+        break;
+    }
+  }
+
+  /**
    * 清理资源
    */
   private cleanup(): void {
+    // 停止震动
+    VibrationService.stopVibration();
+    console.log('WidgetCard: Stopped vibration');
+
+    // 断开WebSocket连接
     if (this.wsService) {
       this.wsService.disconnect();
       this.wsService = null;
