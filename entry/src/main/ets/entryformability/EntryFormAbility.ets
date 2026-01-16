@@ -1,32 +1,60 @@
-import { formBindingData, FormExtensionAbility, formInfo } from '@kit.FormKit';
+import { formBindingData, FormExtensionAbility, formInfo, formProvider } from '@kit.FormKit';
 import { Want } from '@kit.AbilityKit';
+import { FormData, FormCardData } from '../common/CommonData';
+import { CommonConstants } from '../common/CommonConstants';
+import { PreferencesUtil } from '../common/utils/PreferencesUtil';
+
+const TAG: string = 'EntryFormAbility';
 
 export default class EntryFormAbility extends FormExtensionAbility {
-  onAddForm(want: Want) {
-    // Called to return a FormBindingData object.
-    const formData = '';
-    return formBindingData.createFormBindingData(formData);
-  }
-
-  onCastToNormalForm(formId: string) {
-    // Called when the form provider is notified that a temporary form is successfully
-    // converted to a normal form.
+  onAddForm(want: Want): formBindingData.FormBindingData {
+    if (!want || !want.parameters) {
+      return formBindingData.createFormBindingData('');
+    }
+    do {
+      let formId: string = want.parameters[formInfo.FormParam.IDENTITY_KEY] as string;
+      return formBindingData.createFormBindingData('');
+    } while (0);
   }
 
   onUpdateForm(formId: string) {
-    // Called to notify the form provider to update a specified form.
+    try {
+      let util = PreferencesUtil.getInstance();
+      let preferences = util.getPreferences(this.context);
+      if (!preferences) {
+        return;
+      }
+
+      let dataJson = util.preferencesGet(preferences, CommonConstants.DATA_KEY, '{}') as string;
+      let data = JSON.parse(dataJson);
+
+      let formData = new FormData(formId);
+      formData.formTime = Date.now().toString();
+      formData.cardList = [data];
+      let formMsg = formBindingData.createFormBindingData(formData);
+      formProvider.updateForm(formId, formMsg).then(() => {
+        console.log('EntryFormAbility: updateForm success');
+      }).catch((error: Error) => {
+        console.error('EntryFormAbility: updateForm failed -', error);
+      });
+    } catch (error) {
+      console.error('EntryFormAbility: onUpdateForm error -', error);
+    }
+  }
+
+  onRemoveForm(formId: string): void {
+    console.log('EntryFormAbility: onRemoveForm -', formId);
   }
 
   onFormEvent(formId: string, message: string) {
-    // Called when a specified message event defined by the form provider is triggered.
+    console.log('EntryFormAbility: onFormEvent -', formId, message);
   }
 
-  onRemoveForm(formId: string) {
-    // Called to notify the form provider that a specified form has been destroyed.
+  onCastToNormalForm(formId: string): void {
+    console.log('EntryFormAbility: onCastToNormalForm -', formId);
   }
 
-  onAcquireFormState(want: Want) {
-    // Called to return a {@link FormState} object.
+  onAcquireFormState(want: Want): formInfo.FormState {
     return formInfo.FormState.READY;
   }
 }
