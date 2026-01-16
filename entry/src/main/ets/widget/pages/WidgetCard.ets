@@ -1,6 +1,6 @@
 import { WebSocketService, ConnectionStatus } from '../../service/WebSocketService';
 import { DataService, ActionData } from '../../service/DataService';
-import { SimpleVibrationService } from '../../service/SimpleVibrationService';
+import { VibrationService } from '../../service/VibrationService';
 
 @Entry
 @Component
@@ -75,7 +75,7 @@ struct WidgetCard {
       console.log(`WidgetCard: Updated card with action: ${actionData.action}`);
 
       // 根据动作类型触发震动（简单直接）
-      SimpleVibrationService.vibrateByActionType(actionData.type);
+      VibrationService.vibrateByActionType(actionData.type);
     } else {
       console.warn('WidgetCard: Failed to parse message');
     }
@@ -116,7 +116,7 @@ struct WidgetCard {
    */
   private cleanup(): void {
     // 停止震动
-    SimpleVibrationService.stopVibration();
+    VibrationService.stopVibration();
     console.log('WidgetCard: Stopped vibration');
 
     // 断开WebSocket连接
