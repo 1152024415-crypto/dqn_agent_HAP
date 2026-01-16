@@ -38,12 +38,19 @@ struct WidgetCard {
   /**
    * 初始化震动服务
    */
-  private async initVibration(): Promise<void> {
+  private initVibration(): void {
+    // Form组件中暂时不主动请求权限，在首次震动时处理
+    console.log('WidgetCard: Vibration service ready');
+  }
+
+  /**
+   * 确保有震动权限（可选）
+   */
+  private async ensureVibrationPermission(): Promise<void> {
     try {
-      await VibrationService.ensurePermission(getContext(this) as common.UIAbilityContext);
-      console.log('WidgetCard: Vibration service initialized');
+      await VibrationService.ensurePermission();
     } catch (error) {
-      console.error(`WidgetCard: Vibration init error - ${JSON.stringify(error)}`);
+      console.error(`WidgetCard: Vibration permission error - ${JSON.stringify(error)}`);
     }
   }
 
@@ -100,13 +107,15 @@ struct WidgetCard {
    * 根据动作类型触发震动
    */
   private triggerActionVibration(actionType: string): void {
-    if (actionType === 'recommend') {
-      VibrationService.vibrate(VibrationMode.RECOMMEND);
-      console.log('WidgetCard: Triggered recommend vibration');
-    } else if (actionType === 'probe') {
-      VibrationService.vibrate(VibrationMode.PROBE);
-      console.log('WidgetCard: Triggered probe vibration');
-    }
+    this.ensureVibrationPermission().then(() => {
+      if (actionType === 'recommend') {
+        VibrationService.vibrate(VibrationMode.RECOMMEND);
+        console.log('WidgetCard: Triggered recommend vibration');
+      } else if (actionType === 'probe') {
+        VibrationService.vibrate(VibrationMode.PROBE);
+        console.log('WidgetCard: Triggered probe vibration');
+      }
+    });
   }
 
   /**
@@ -135,22 +144,24 @@ struct WidgetCard {
    * 处理连接状态变化
    */
   private handleStatusChange(status: ConnectionStatus): void {
-    switch (status) {
-      case ConnectionStatus.CONNECTED:
-        // 连接成功，触发短震动
-        VibrationService.vibrate(VibrationMode.CONNECTED);
-        break;
-      case ConnectionStatus.ERROR:
-        // 连接错误，触发错误震动
-        VibrationService.vibrate(VibrationMode.ERROR);
-        break;
-      case ConnectionStatus.DISCONNECTED:
-        // 连接断开，不触发震动
-        break;
-      case ConnectionStatus.CONNECTING:
-        // 连接中，不触发震动
-        break;
-    }
+    this.ensureVibrationPermission().then(() => {
+      switch (status) {
+        case ConnectionStatus.CONNECTED:
+          // 连接成功，触发短震动
+          VibrationService.vibrate(VibrationMode.CONNECTED);
+          break;
+        case ConnectionStatus.ERROR:
+          // 连接错误，触发错误震动
+          VibrationService.vibrate(VibrationMode.ERROR);
+          break;
+        case ConnectionStatus.DISCONNECTED:
+          // 连接断开，不触发震动
+          break;
+        case ConnectionStatus.CONNECTING:
+          // 连接中，不触发震动
+          break;
+      }
+    });
   }
 
   /**
