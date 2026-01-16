@@ -1,7 +1,4 @@
 import { webSocket } from '@kit.NetworkKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-
-const DOMAIN = 0x0000;
 
 /**
  * WebSocket连接状态枚举
@@ -34,7 +31,7 @@ export class WebSocketService {
    */
   connect(): void {
     if (this.ws) {
-      hilog.warn(DOMAIN, 'WebSocketService', 'WebSocket already connected');
+      console.log('WebSocketService: Already connected');
       return;
     }
 
@@ -44,23 +41,23 @@ export class WebSocketService {
       this.ws = webSocket.createWebSocket();
 
       this.ws.on('open', () => {
-        hilog.info(DOMAIN, 'WebSocketService', 'WebSocket connected to ${public}', this.serverUrl);
+        console.log(`WebSocketService: Connected to ${this.serverUrl}`);
         this.reconnectAttempts = 0;
         this.updateStatus(ConnectionStatus.CONNECTED);
       });
 
       this.ws.on('message', (err: BusinessError<void>, value: string | ArrayBuffer) => {
         if (typeof value === 'string' && this.messageCallback) {
-          hilog.info(DOMAIN, 'WebSocketService', 'Received message: ${public}', value);
+          console.log(`WebSocketService: Received message: ${value}`);
           this.messageCallback(value);
         }
       });
 
       this.ws.on('close', () => {
-        hilog.info(DOMAIN, 'WebSocketService', 'WebSocket closed');
+        console.log('WebSocketService: Closed');
         this.updateStatus(ConnectionStatus.DISCONNECTED);
         this.ws = null;
-        
+
         // 自动重连
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.scheduleReconnect();
@@ -68,15 +65,15 @@ export class WebSocketService {
       });
 
       this.ws.on('error', (err: Error) => {
-        hilog.error(DOMAIN, 'WebSocketService', 'WebSocket error: ${public}', JSON.stringify(err));
+        console.error(`WebSocketService: Error - ${JSON.stringify(err)}`);
         this.updateStatus(ConnectionStatus.ERROR);
         this.ws = null;
       });
 
       this.ws.connect(this.serverUrl);
-      
+
     } catch (error) {
-      hilog.error(DOMAIN, 'WebSocketService', 'Connection error: ${public}', JSON.stringify(error));
+      console.error(`WebSocketService: Connection error - ${JSON.stringify(error)}`);
       this.updateStatus(ConnectionStatus.ERROR);
     }
   }

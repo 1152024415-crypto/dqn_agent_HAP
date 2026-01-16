@@ -1,8 +1,5 @@
 import { WebSocketService, ConnectionStatus } from '../../service/WebSocketService';
 import { DataService, ActionData } from '../../service/DataService';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-
-const DOMAIN = 0x0000;
 
 @Entry
 @Component
