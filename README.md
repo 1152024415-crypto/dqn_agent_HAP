@@ -1,22 +1,34 @@
-# HarmonyOS 智能动作推荐卡片Demo
+# HarmonyOS 智能动作推荐卡片
 
 ## 项目概述
 
 ### 应用名称
-Action Recommendation Card Demo
+Action Recommendation Card
 
 ### 核心功能
 1. **Card Display**: 在桌面卡片上展示动作推荐信息
 2. **WebSocket Communication**: 与服务器建立WebSocket连接，接收实时推送
-3. **HTTP Requests**: 通过HTTP API获取动作数据
-4. **Vibration Feedback**: 收到新推荐时提供震动反馈
-5. **Simple UI**: 初期以文字展示为主，逐步迭代UI
+3. **Three-Layer AI Module**: 支持Rule Engine、DQN、VLM三层AI架构的推荐展示
+4. **Vibration Feedback**: 根据不同AI模块提供差异化震动反馈
+5. **Dynamic UI**: 根据激活的AI模块动态调整卡片显示内容
 
-### 架构理解
+### 架构说明
 基于服务器代码分析，正确的通信流程是：
 1. **外部系统** → **HTTP API** (`/api/recommendations`) → 服务器
 2. **服务器** → **WebSocket** (`/recommendation-stream`) → HarmonyOS卡片
 3. **卡片** 显示接收到的动作推荐信息
+
+### 三层AI模块架构
+系统采用分层决策架构，从下到上依次为：
+- **Rule Engine (基础层)**: 基于规则的简单决策
+- **DQN (中间层)**: 深度Q网络学习决策
+- **VLM (最高层)**: 视觉语言模型高级分析
+
+**激活规则**:
+- 同一时间只有一个模块激活（`active_module`字段指定）
+- VLM激活时，必定包含DQN的数据
+- DQN激活时，必定包含Rule Engine的数据
+- 不降级显示：只显示激活模块对应的内容
 
 ## 技术架构
 
@@ -38,9 +50,12 @@ dqnApp/
 │   │   ├── ets/
 │   │   │   ├── widget/pages/   # 卡片页面
 │   │   │   │   └── WidgetCard.ets  # 主卡片组件
-│   │   │   ├── model/          # 数据模型
 │   │   │   ├── service/        # 业务服务
-│   │   │   └── utils/          # 工具类
+│   │   │   │   ├── WebSocketService.ets   # WebSocket连接管理
+│   │   │   │   ├── DataService.ets        # 数据解析处理
+│   │   │   │   └── VibrationService.ets   # 震动反馈服务
+│   │   │   └── entryability/   # 应用入口
+│   │   │       └── EntryAbility.ets
 │   │   └── resources/
 │   │       └── base/profile/
 │   │           └── form_config.json  # 卡片配置
@@ -52,164 +67,378 @@ dqnApp/
 
 ## 功能模块设计
 
-### 1. 卡片展示模块 (WidgetCard)
+### 1. 卡片展示模块 (WidgetCard) ✅
 **功能**:
 - 在桌面卡片上展示动作推荐信息
-- 显示最新接收到的动作数据
-- 简单的文字展示（初期版本）
-- 点击卡片可跳转到应用主页面
+- 根据激活的AI模块动态显示不同内容
+- 显示连接状态指示器
+- 显示模块标签（Rule/DQN/VLM）
+- 点击卡片可管理WebSocket连接
 
 **技术实现**:
-- 基于现有的`WidgetCard.ets`组件扩展
-- 使用`@Entry`和`@Component`装饰器
-- 卡片尺寸：4*4（可在form_config.json中配置）
+- 基于`@Entry`和`@Component`装饰器
+- 卡片尺寸：4×4
+- 支持三种模块的内容展示：
+  - **Rule Engine**: Category, Decision, Description
+  - **DQN**: Action Type, Action
+  - **VLM**: Action Type, Scene, Action, Analysis
 
-### 2. 网络通信模块
+### 2. 网络通信模块 ✅
 #### 2.1 WebSocket服务 (WebSocketService)
 **功能**:
 - 与服务器建立WebSocket连接
 - 接收服务器实时推送的动作数据
 - 处理连接状态和错误恢复
+- 自动重连机制（最多5次，指数退避）
 
 **技术实现**:
 - 使用`@kit.NetworkKit`的WebSocket API
 - 连接地址：`ws://0.0.0.0:8080/recommendation-stream`
+- 连接状态枚举：`DISCONNECTED` | `CONNECTING` | `CONNECTED` | `ERROR`
 - 在卡片生命周期中管理连接
 
-#### 2.2 HTTP服务 (HttpService) 
-**功能**:
-- 通过HTTP API获取动作数据（如果需要主动拉取）
-- 发送请求到服务器（如果需要客户端发起请求）
-
-**技术实现**:
-- 使用`@kit.NetworkKit`的HTTP API
-- API地址：`http://0.0.0.0:8080/api/recommendations`
-
-### 3. 数据处理模块 (DataService)
+### 3. 数据处理模块 (DataService) ✅
 **功能**:
 - 解析WebSocket接收的JSON数据
 - 验证数据格式的正确性
 - 数据转换和格式化
-- 管理当前显示的动作数据
+- 提供模块标签和颜色方法
 
-**数据格式**:
+**数据格式**（新架构）:
 ```json
 {
   "id": "rec_1736923200_001",
-  "type": "recommend",
-  "action": "transit_QR_code",
   "timestamp": 1736923200,
-  "metadata": {
-    "reward": 0.8,
-    "description": "Subway station 100m ahead, suggest opening transit QR code."
+  "active_module": "dqn",
+  
+  "rule_engine": {
+    "category": "transit",
+    "decision": "open_qr_code",
+    "description": "建议打开乘车码"
+  },
+  
+  "dqn": {
+    "action": "transit_QR_code",
+    "type": "recommend"
+  },
+  
+  "vlm": {
+    "scene_category": "transit",
+    "description": "前方100米有地铁站，建议打开乘车码。"
   }
 }
 ```
 
-### 4. 震动反馈模块 (VibrationService)
+**字段说明**:
+- `active_module`: 激活的模块，可选值：`"rule_engine"` | `"dqn"` | `"vlm"`
+- `rule_engine`: 规则引擎数据
+  - `category`: 场景类别（如transit, food, shopping）
+  - `decision`: 规则决策（字符串，在推荐范围内）
+  - `description`: 可选的简短说明
+- `dqn`: DQN数据
+  - `action`: 具体动作
+  - `type`: `"recommend"` | `"probe"`
+- `vlm`: VLM数据
+  - `scene_category`: 场景类别
+  - `description`: 长文本描述（一般20字左右）
+
+### 4. 震动反馈模块 (VibrationService) ✅
 **功能**:
-- 收到新消息时触发设备震动
-- 简单的震动反馈（不区分动作类型）
-- 申请和处理震动权限
+- 根据激活的AI模块提供差异化震动反馈
+- 根据动作类型调整震动强度
+- 简单直接的震动触发机制
+
+**震动级别枚举**:
+| 模块 | 动作类型 | 震动模式 | 震动时长 |
+|------|---------|---------|---------|
+| Rule Engine | - | 单次震动 | 200ms |
+| DQN | Recommend | 单次震动 | 300ms |
+| DQN | Probe | 单次震动 | 800ms |
+| VLM | - | 双震动 | 1500ms |
 
 **技术实现**:
 - 使用`@ohos.vibrator` API
-- 简单震动模式：500ms单次震动
-- 在卡片中集成震动功能
+- VLM双震动使用系统预设：`haptic.clock.timer` × 2
+- 震动权限已在`module.json5`中声明
 
-### 5. 状态管理
-**功能**:
-- 管理卡片显示状态
-- 管理网络连接状态
-- 管理当前显示的数据
+## UI设计
 
-**实现方式**:
-- 使用ArkTS的`@State`装饰器管理组件状态
-- 简单的状态管理，不复杂化
-- 不持久化数据（卡片刷新即清空）
+### 整体布局（4×4卡片）
 
-## UI设计（渐进式实现）
-
-### 阶段一：基础文字展示（初始版本）
-**卡片布局** (4x4尺寸):
 ```
-┌──────────────────────────────┐
-│  Action Recommendation    │
-├──────────────────────────────┤
-│  [RECOMMEND]              │
-│                           │
-│  Action                   │
-│  transit_QR_code          │
-│                           │
-│  Reward  0.80            │
-│  ▓▓▓▓▓▓▓▓░░░░░         │
-│                           │
-│  Description              │
-│  Subway station 100m ahead,│
-│  suggest opening transit   │
-│  QR code.                │
-│                           │
-│  Updated: just now        │
-│  Tap card to refresh      │
-└──────────────────────────────┘
+┌────────────────────────────────┐
+│ Action Recommendation    ● [DQN]│  ← 标题 + 连接状态 + 模块标签
+├────────────────────────────────┤
+│                                │
+│ [RECOMMEND] ← Action类型标签   │
+│                                │
+│ Action                         │
+│ transit_QR_code                │
+│                                │
+│ Updated: 2m ago                │
+│                                │
+└────────────────────────────────┘
+Tap card to disconnect           ← 底部状态文本
 ```
 
-**显示内容**:
-1. **标题**: "Action Recommendation"
-2. **动作类型**: "RECOMMEND" (蓝色) 或 "PROBE" (紫色) - 显示为标签
-3. **动作名称**: 原始action字段（如transit_QR_code）
-4. **奖励值**: reward数值显示（绿色大字体）
-5. **进度条**: 可视化展示奖励值（0-100%）
-6. **描述**: 完整显示描述文本（最多3行）
-7. **时间**: 相对时间（just now、X minutes ago）
-8. **提示**: 底部显示点击刷新提示
+### 不同激活模块的显示
 
-**设计原则**:
-- 简单文字，无复杂样式
-- 自动换行处理长文本
-- 固定字体大小和颜色
+#### Rule Engine激活时
+```
+┌────────────────────────────────┐
+│ Action Recommendation    ● [Rule]│
+├────────────────────────────────┤
+│                                │
+│ Category                       │
+│ transit                        │
+│                                │
+│ Decision                       │
+│ open_qr_code                   │
+│                                │
+│ Description (可选)             │
+│ 建议打开乘车码                  │
+│                                │
+└────────────────────────────────┘
+```
 
-### 阶段二：基础样式优化（后续迭代）
-**可添加的简单样式**:
-- 不同类型使用不同文字颜色
-- 添加简单分隔线
-- 调整文字对齐方式
-- 添加简单背景色区分
+#### DQN激活时
+```
+┌────────────────────────────────┐
+│ Action Recommendation    ● [DQN]│
+├────────────────────────────────┤
+│                                │
+│ [RECOMMEND]                    │
+│                                │
+│ Action                         │
+│ transit_QR_code                │
+│                                │
+│ Updated: just now              │
+│                                │
+└────────────────────────────────┘
+```
 
-### 阶段三：高级UI（如有需求）
-- 添加图标标识
-- 进度条显示奖励值
-- 卡片边框样式
-- 动画效果
+#### VLM激活时
+```
+┌────────────────────────────────┐
+│ Action Recommendation    ● [VLM]│
+├────────────────────────────────┤
+│                                │
+│ [RECOMMEND]                    │
+│                                │
+│ Scene                          │
+│ transit                        │
+│                                │
+│ Action                         │
+│ transit_QR_code                │
+│                                │
+│ Analysis                       │
+│ 前方100米有地铁站，建议打开     │
+│ 乘车码。                       │
+│                                │
+│ Updated: 1m ago                │
+│                                │
+└────────────────────────────────┘
+```
 
-## 交互设计
+### 颜色方案
 
-### 1. 卡片点击交互
-- 点击卡片可跳转到应用主页面
-- 在主页面上显示更多详细信息
-- 保留基本的卡片刷新机制
+**模块标签颜色**:
+| 模块 | 标签 | 背景色 | 文字色 |
+|------|------|--------|--------|
+| Rule Engine | [Rule] | 灰色 #E0E0E0 | 深灰 #666666 |
+| DQN | [DQN] | 浅蓝 #E6F7FF | 蓝色 #1890FF |
+| VLM | [VLM] | 浅紫 #F9F0FF | 紫色 #722ED1 |
 
-### 2. 数据更新
-- WebSocket实时推送更新卡片内容
-- 收到新数据时触发震动
-- 卡片内容自动刷新
+**Action类型标签颜色**:
+| 类型 | 背景色 |
+|------|--------|
+| RECOMMEND | 蓝色 #1890FF |
+| PROBE | 紫色 #722ED1 |
 
-### 3. 状态反馈
-- **连接状态**: 通过文字简单显示（"已连接"/"未连接"）
-- **新消息**: 更新卡片内容并震动
-- **错误状态**: 显示简单错误信息
+**连接状态颜色**:
+| 状态 | 颜色 |
+|------|------|
+| CONNECTING | 橙色 #FAAD14 |
+| CONNECTED | 绿色 #52C41A |
+| DISCONNECTED | 灰色 #999999 |
+| ERROR | 红色 #F5222D |
 
 ## 数据模型
 
-### 动作类型定义（来自服务器）
-**探测动作 (Probe Actions)**:
+### 推荐数据接口
+```typescript
+interface RecommendationData {
+  id: string;
+  timestamp: number;
+  active_module: 'rule_engine' | 'dqn' | 'vlm';
+  
+  rule_engine?: {
+    category: string;
+    decision: string;
+    description?: string;
+  };
+  
+  dqn?: {
+    action: string;
+    type: 'recommend' | 'probe';
+  };
+  
+  vlm?: {
+    scene_category: string;
+    description: string;
+  };
+}
+```
+
+### 连接状态枚举
+```typescript
+enum ConnectionStatus {
+  DISCONNECTED = 0,
+  CONNECTING = 1,
+  CONNECTED = 2,
+  ERROR = 3
+}
+```
+
+## 用户交互流程
+
+### 1. 卡片添加流程
+1. 用户在桌面长按添加卡片
+2. 选择"Action Recommendation Card"
+3. 卡片添加到桌面，显示初始状态（连接中）
+4. 卡片自动尝试连接WebSocket服务器
+
+### 2. 数据接收流程
+1. 外部系统通过HTTP API发送动作数据到服务器
+2. 服务器通过WebSocket推送数据到已连接的卡片
+3. 卡片接收并解析WebSocket消息
+4. 根据激活模块触发对应的震动反馈
+5. 根据激活模块更新卡片显示内容
+6. 显示最新的动作推荐信息
+
+### 3. 卡片交互流程
+1. 用户查看桌面卡片上的动作推荐
+2. 点击卡片可管理WebSocket连接：
+   - 未连接状态：点击连接
+   - 已连接状态：点击断开
+   - 错误状态：点击重连
+
+## 权限配置
+
+### 已声明权限
+在`module.json5`中已声明：
+```json
+"requestPermissions": [
+  {
+    "name": "ohos.permission.INTERNET",
+    "reason": "Need network access to connect to server",
+    "usedScene": {
+      "abilities": ["EntryAbility"],
+      "when": "inuse"
+    }
+  },
+  {
+    "name": "ohos.permission.VIBRATE",
+    "reason": "Need vibration feedback when receiving new action recommendations",
+    "usedScene": {
+      "abilities": ["EntryAbility"],
+      "when": "inuse"
+    }
+  }
+]
+```
+
+## 服务器集成
+
+### 服务器信息
+- **地址**: 0.0.0.0:8080
+- **WebSocket端点**: `/recommendation-stream`
+- **HTTP API**: `/api/recommendations` (POST)
+- **服务器路径**: `D:\proj\datapallet\app_server`
+
+### 服务器架构
+```
+外部系统 → HTTP POST → 服务器 → WebSocket → HarmonyOS卡片
+           /api/recommendations           /recommendation-stream
+```
+
+### 测试流程
+
+#### 1. 启动服务器
+```bash
+cd D:\proj\datapallet\app_server
+python server.py
+```
+
+#### 2. 发送测试数据
+```bash
+cd D:\proj\datapallet\app_server
+python test.py
+```
+
+#### 3. 测试数据格式
+**Rule Engine测试数据**:
+```json
+{
+  "id": "rec_1234567890_001",
+  "timestamp": 1234567890,
+  "active_module": "rule_engine",
+  "rule_engine": {
+    "category": "transit",
+    "decision": "open_qr_code",
+    "description": "建议打开乘车码"
+  }
+}
+```
+
+**DQN测试数据**:
+```json
+{
+  "id": "rec_1234567890_001",
+  "timestamp": 1234567890,
+  "active_module": "dqn",
+  "rule_engine": {
+    "category": "transit",
+    "decision": "open_qr_code"
+  },
+  "dqn": {
+    "action": "transit_QR_code",
+    "type": "recommend"
+  }
+}
+```
+
+**VLM测试数据**:
+```json
+{
+  "id": "rec_1234567890_001",
+  "timestamp": 1234567890,
+  "active_module": "vlm",
+  "rule_engine": {
+    "category": "transit",
+    "decision": "open_qr_code"
+  },
+  "dqn": {
+    "action": "transit_QR_code",
+    "type": "recommend"
+  },
+  "vlm": {
+    "scene_category": "transit",
+    "description": "前方100米有地铁站，建议打开乘车码。"
+  }
+}
+```
+
+## 动作类型定义
+
+### 探测动作 (Probe Actions)
 - `QUERY_LOC_NET`: 通过网络获取位置信息
 - `QUERY_LOC_GPS`: 通过GPS获取高精度位置信息
 - `QUERY_VISUAL`: 查询视觉/图像信息
 - `QUERY_SOUND_INTENSITY`: 查询环境声音强度
 - `QUERY_LIGHT_INTENSITY`: 查询环境光照强度
 
-**推荐动作 (Recommend Actions)**:
+### 推荐动作 (Recommend Actions)
 - `NONE`: No action / No recommendation
 - `step_count_and_map`: Display step count and map information
 - `transit_QR_code`: Show public transportation/transit QR code
@@ -226,216 +455,58 @@ dqnApp/
 - `arrived`: Destination arrival reminder
 - `parking`: Parking space management
 
-### 卡片数据模型
-```typescript
-// 当前卡片显示的数据
-interface CardDisplayData {
-  id: string;                    // 数据ID
-  type: 'recommend' | 'probe';   // 动作类型
-  action: string;                // 动作名称
-  timestamp: number;             // 服务器时间戳
-  metadata: {
-    reward: number;              // 奖励值 (0-1)
-    description: string;         // 动作描述
-  };
-  displayTime: string;           // 格式化显示时间
-}
+## 验收标准
 
-// 连接状态
-type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+### 核心功能 ✅
+- [x] 卡片能成功添加到桌面
+- [x] 卡片能连接WebSocket服务器（0.0.0.0:8080）
+- [x] 卡片能接收服务器推送的动作数据
+- [x] 根据激活模块触发差异化震动反馈
+- [x] 卡片能正确显示不同AI模块的信息
+- [x] 点击卡片能管理WebSocket连接
 
-// 卡片状态
-interface CardState {
-  currentData: CardDisplayData | null;  // 当前显示的数据
-  connectionStatus: ConnectionStatus;    // 连接状态
-  lastUpdateTime: number;                // 最后更新时间
-}
-```
+### 数据流验收 ✅
+- [x] 外部系统通过HTTP POST发送数据到服务器
+- [x] 服务器通过WebSocket推送数据到卡片
+- [x] 卡片解析并显示新格式的三层JSON数据
+- [x] 完整的数据流：HTTP → 服务器 → WebSocket → 卡片
 
-## 用户交互流程
+### UI验收 ✅
+- [x] 卡片能显示基本的文字信息
+- [x] 不同AI模块能区分显示（标签颜色、内容不同）
+- [x] 连接状态通过颜色指示器显示
+- [x] 时间信息能正确格式化显示（just now, Xm ago）
+- [x] 卡片布局合理，文字可读
 
-### 1. 卡片添加流程
-1. 用户在桌面长按添加卡片
-2. 选择"智能动作推荐卡片"
-3. 卡片添加到桌面，显示初始状态
-4. 卡片自动尝试连接WebSocket服务器
+### 震动反馈验收 ✅
+- [x] Rule Engine激活时震动200ms
+- [x] DQN Recommend激活时震动300ms
+- [x] DQN Probe激活时震动800ms
+- [x] VLM激活时双震动1500ms
 
-### 2. 数据接收流程
-1. 外部系统通过HTTP API发送动作数据到服务器
-2. 服务器通过WebSocket推送数据到已连接的卡片
-3. 卡片接收并解析WebSocket消息
-4. 触发设备震动反馈
-5. 更新卡片显示内容
-6. 显示最新的动作推荐信息
+## Git提交历史
 
-### 3. 卡片交互流程
-1. 用户查看桌面卡片上的动作推荐
-2. 点击卡片跳转到应用主页面（可选）
-3. 在主页面查看更详细的信息（可选）
-4. 卡片定期刷新或实时更新
+1. **Initial commit**: 项目初始化
+2. **Update app text to English**: 将应用界面文本改为英文
+3. **Update card size to 4x4**: 将卡片尺寸改为4×4
+4. **Add WebSocket connection**: 添加WebSocket连接功能
+5. **Simplify vibration service**: 简化震动服务实现
+6. **Fix vibration API error**: 修复震动API调用错误
+7. **Update data format to support three-layer AI modules**: 更新数据格式支持三层AI模块
 
-## 权限配置
-
-### 必需权限
-在`module.json5`中声明：
-```json
-"requestPermissions": [
-  {
-    "name": "ohos.permission.INTERNET",
-    "reason": "需要网络访问权限以连接服务器",
-    "usedScene": {
-      "abilities": ["EntryAbility"],
-      "when": "inuse"
-    }
-  },
-  {
-    "name": "ohos.permission.VIBRATE",
-    "reason": "需要震动反馈功能",
-    "usedScene": {
-      "abilities": ["EntryAbility"],
-      "when": "inuse"
-    }
-  }
-]
-```
-
-### 权限说明
-1. **网络权限**: 用于WebSocket连接和HTTP请求
-2. **震动权限**: 用于收到新消息时的震动反馈
-3. **卡片权限**: 已在form_config.json中配置卡片相关权限
-
-## 服务器集成
-
-### 服务器信息
-- **地址**: 0.0.0.0:8080
-- **WebSocket端点**: `/recommendation-stream`
-- **HTTP API**: `/api/recommendations` (POST)
-
-### 服务器架构
-```
-外部系统 → HTTP POST → 服务器 → WebSocket → HarmonyOS卡片
-           /api/recommendations           /recommendation-stream
-```
-
-### 服务器功能
-1. **HTTP API**: 接收外部系统的动作数据
-2. **WebSocket服务**: 实时推送数据给已连接的卡片
-3. **单客户端模式**: 只保持最新的卡片连接
-
-### 测试流程
-1. 启动服务器：`python server.py` (在D:\proj\datapallet\app_server目录)
-2. 安装HarmonyOS应用到设备/模拟器
-3. 在桌面添加"智能动作推荐卡片"
-4. 发送测试数据：`python test.py`
-5. 验证卡片收到数据并更新显示
-
-## 开发计划（模块化实现）
-
-### 阶段一：基础卡片改造 (0.5天)
-1. 修改现有`WidgetCard.ets`，添加数据展示区域
-2. 定义基础数据模型和接口
-3. 配置网络和震动权限
-4. 实现简单的文字展示布局
-
-### 阶段二：WebSocket连接模块 (1天)
-1. 创建WebSocketService，实现连接管理
-2. 集成WebSocket到卡片生命周期
-3. 实现基础的消息接收和解析
-4. 添加连接状态管理
-
-### 阶段三：数据处理和展示 (0.5天)
-1. 实现数据解析和格式化
-2. 添加时间格式化工具
-3. 实现卡片内容更新机制
-4. 添加简单的错误处理
-
-### 阶段四：震动反馈集成 (0.5天)
-1. 创建VibrationService
-2. 集成震动到数据接收流程
-3. 处理震动权限申请
-4. 测试震动功能
-
-### 阶段五：测试和优化 (0.5天)
-1. 与本地服务器集成测试
-2. 测试完整的数据流：HTTP→服务器→WebSocket→卡片
-3. 验证震动反馈功能
-4. 优化卡片显示效果
-
-## 技术实现要点
-
-### 1. 卡片开发要点
-- 使用`@Entry`和`@Component`装饰器定义卡片
-- 遵循HarmonyOS卡片开发规范
-- 卡片尺寸和布局适配
-- 卡片生命周期管理
-
-### 2. WebSocket实现
-- 使用`@kit.NetworkKit`的WebSocket API
-- 在卡片中管理WebSocket连接
-- 处理连接断开和重连
-- 异步消息处理
-
-### 3. 震动功能
-- 使用`@ohos.vibrator` API
-- 简单的震动模式（不复杂化）
-- 权限申请和处理
-
-### 4. 数据流处理
-- JSON数据解析和验证
-- 时间格式化显示
-- 简单的状态管理
-- 错误处理和恢复
-
-## 已知约束和简化设计
-
-### 技术约束
-1. **单客户端连接**: 服务器只支持单个WebSocket客户端连接
-2. **卡片尺寸**: 4*4卡片提供更多展示空间
-3. **系统资源**: 卡片资源使用受限
-4. **本地服务器**: 测试需要本地运行Python服务器
-
-### 简化设计原则
-1. **UI简化**: 初期只使用文字展示，无复杂样式
-2. **功能聚焦**: 只实现核心的WebSocket接收和显示功能
-3. **状态简化**: 简单的状态管理，不复杂化
-4. **错误处理**: 基础错误处理，不追求完美
-5. **性能忽略**: Demo阶段不优化性能
-
-## 验收标准（Demo级别）
-
-### 核心功能验收
-- [ ] 卡片能成功添加到桌面
-- [ ] 卡片能连接WebSocket服务器（0.0.0.0:8080）
-- [ ] 卡片能接收服务器推送的动作数据
-- [ ] 收到数据时能触发震动反馈
-- [ ] 卡片能正确显示动作信息（文字形式）
-- [ ] 点击卡片能正常响应（跳转或刷新）
-
-### 数据流验收
-- [ ] 外部系统通过HTTP POST发送数据到服务器
-- [ ] 服务器通过WebSocket推送数据到卡片
-- [ ] 卡片解析并显示JSON格式的动作数据
-- [ ] 完整的数据流：HTTP → 服务器 → WebSocket → 卡片
-
-### 基础UI验收
-- [ ] 卡片能显示基本的文字信息
-- [ ] 不同类型动作能区分显示（文字区分）
-- [ ] 时间信息能正确格式化显示
-- [ ] 卡片布局合理，文字可读
-
-## 后续迭代建议（如有需要）
-
-### UI增强
-1. **样式优化**: 添加颜色、字体样式
-2. **图标集成**: 为不同动作类型添加图标
-3. **布局改进**: 优化卡片信息布局
-4. **动画效果**: 添加简单的更新动画
+## 后续迭代建议
 
 ### 功能扩展
-1. **多数据显示**: 在卡片上轮播显示多条记录
-2. **历史记录**: 在主页面查看历史动作记录
-3. **设置界面**: 配置服务器地址等参数
-4. **更多交互**: 在卡片上直接执行简单操作
+1. **历史记录**: 在主页面查看历史动作记录
+2. **设置界面**: 配置服务器地址等参数
+3. **数据持久化**: 保存历史推荐记录
+4. **多卡片支持**: 支持同时显示多个卡片
+
+### UI增强
+1. **图标集成**: 为不同模块添加图标
+2. **动画效果**: 添加数据更新动画
+3. **主题切换**: 支持暗色/亮色主题
+4. **自定义布局**: 允许用户自定义卡片布局
 
 ### 稳定性提升
 1. **错误恢复**: 增强网络断开重连机制
@@ -443,18 +514,33 @@ interface CardState {
 3. **性能优化**: 优化卡片刷新性能
 4. **兼容性**: 适配更多设备类型
 
+### GitHub集成
+1. 添加远程仓库：`git remote add origin https://github.com/1152024415-crypto/dqn_agent_HAP.git`
+2. 推送代码：`git push -u origin master`
+
 ---
 
-## 需要确认的关键点
+## 开发完成状态
 
-1. **服务器地址**: 确认使用 `0.0.0.0:8080` 还是其他地址？
-2. **卡片尺寸**: 当前配置为4*4，是否需要支持其他尺寸？
-3. **数据展示**: 是否需要为action字段提供中文翻译显示？
-4. **震动模式**: 是否需要区分推荐/探测动作的不同震动？
-5. **测试数据**: 是否需要内置测试按钮发送模拟数据？
+✅ **核心功能已完成**
+- 卡片展示
+- WebSocket实时通信
+- 三层AI模块架构
+- 差异化震动反馈
+- 动态UI展示
 
-**请确认以上设计方案是否符合您的期望**，特别是：
-- 卡片为核心业务的设计思路
-- 渐进式UI开发策略
-- 简化的功能实现
-- 正确的数据流理解（HTTP→服务器→WebSocket→卡片）
+✅ **测试验证已完成**
+- WebSocket连接测试
+- 数据接收测试
+- 震动反馈测试
+- UI展示测试
+
+📝 **文档已完成**
+- 代码注释完善
+- 测试数据示例完整
+- README更新
+
+🚀 **可进行下一步**
+- 部署到实际设备测试
+- 推送到GitHub
+- 开始功能扩展开发
