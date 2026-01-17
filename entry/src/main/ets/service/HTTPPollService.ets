@@ -106,7 +106,7 @@ export class HTTPPollService {
     }
   }
 
-  private async saveToPreferences(data: RecommendationData): Promise<void> {
+   public async saveToPreferences(data: RecommendationData): Promise<void> {
     if (!this.context) {
       hilog.error(DOMAIN, 'HTTPPollService', 'Context is null');
       return;
