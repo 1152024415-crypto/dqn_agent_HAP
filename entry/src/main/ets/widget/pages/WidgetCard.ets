@@ -7,13 +7,18 @@ let storageLocal = new LocalStorage();
 @Entry(storageLocal)
 @Component
 struct WidgetCard {
-  @LocalStorageProp('formTime') formTime: string = '';
+  @LocalStorageProp('formTime') @Watch('onFormTimeChange') formTime: string = '';
   @LocalStorageProp('formId') formId: string = '';
   @LocalStorageProp('cardList') @Watch('onCardListChange') cardList: FormCardData[] = [];
   @State currentData: FormCardData | null = null;
 
   readonly fullWidthPercent: string = '100%';
   readonly fullHeightPercent: string = '100%';
+
+  onFormTimeChange() {
+    console.log('WidgetCard: formTime changed to', this.formTime);
+    // formTime变化表示数据已更新，可以触发额外处理
+  }
 
   onCardListChange() {
     console.log('WidgetCard: cardList changed, length =', this.cardList?.length);
@@ -30,6 +35,13 @@ struct WidgetCard {
       console.log('WidgetCard: cardList is empty or undefined');
       this.currentData = null;
     }
+  }
+
+  // 保留onUpdateForm用于调试，但数据现在通过LocalStorage自动注入
+  onUpdateForm(formData: FormData) {
+    console.log('WidgetCard: onUpdateForm called (legacy), formTime =', formData.formTime);
+    console.log('WidgetCard: cardList from LocalStorage length =', this.cardList?.length);
+    // 数据已通过LocalStorage注入，这里不需要额外处理
   }
 
   build() {
