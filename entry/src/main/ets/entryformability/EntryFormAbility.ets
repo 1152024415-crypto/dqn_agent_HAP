@@ -32,10 +32,10 @@ export default class EntryFormAbility extends FormExtensionAbility {
         util.preferencesPut(preferences, CommonConstants.FORM_ID_KEY, formId);
         // 添加到formId列表（供批量更新使用）
         util.addFormId(preferences, formId);
-        console.log(`${TAG}: Saved formId to Preferences - ${formId}`);
+        hilog.info(0x0000, TAG, `Saved formId to Preferences - ${formId}`);
       }
     } catch (error) {
-      console.error(`${TAG}: Failed to save formId - ${error}`);
+      hilog.error(0x0000, TAG, `Failed to save formId - ${error}`);
     }
 
     // 返回包含formTime的FormData（非空）
@@ -43,7 +43,7 @@ export default class EntryFormAbility extends FormExtensionAbility {
     formData.formId = formId;
     formData.formTime = Date.now().toString();
     formData.cardList = []; // 初始为空
-    console.log(`${TAG}: onAddForm returning FormData with formTime: ${formData.formTime}, formId: ${formData.formId}`);
+    hilog.info(0x0000, TAG, `onAddForm returning FormData with formTime: ${formData.formTime}, formId: ${formData.formId}`);
     return formBindingData.createFormBindingData(formData);
   }
 
@@ -53,12 +53,12 @@ export default class EntryFormAbility extends FormExtensionAbility {
       let util = PreferencesUtil.getInstance();
       let preferences = util.getPreferences(this.context);
       if (!preferences) {
-        console.error(`${TAG}: preferences is null`);
+        hilog.error(0x0000, TAG, `preferences is null`);
         return;
       }
 
       let dataJson = util.preferencesGet(preferences, CommonConstants.DATA_KEY, '{}') as string;
-      console.log(`${TAG}: dataJson length: ${dataJson.length}`);
+       hilog.info(0x0000, TAG, `dataJson length: ${dataJson.length}`);
       let jsonData: JsonData = JSON.parse(dataJson) as JsonData;
 
       // 转换为FormCardData对象
@@ -71,35 +71,35 @@ export default class EntryFormAbility extends FormExtensionAbility {
       formCardData.vlm = jsonData.vlm;
       formCardData.favour = false;
 
-      console.log(`${TAG}: FormCardData id: ${formCardData.id}, module: ${formCardData.active_module}`);
+       hilog.info(0x0000, TAG, `FormCardData id: ${formCardData.id}, module: ${formCardData.active_module}`);
 
       let formData = new FormData();
       formData.formId = formId;
       formData.formTime = Date.now().toString();
       formData.cardList = [formCardData];
-      console.log(`${TAG}: FormData formId: ${formData.formId}, cardList length: ${formData.cardList.length}`);
+       hilog.info(0x0000, TAG, `FormData formId: ${formData.formId}, cardList length: ${formData.cardList.length}`);
 
       let formMsg = formBindingData.createFormBindingData(formData);
       formProvider.updateForm(formId, formMsg).then(() => {
-        console.log('EntryFormAbility: updateForm success');
+         hilog.info(0x0000, TAG, 'updateForm success');
       }).catch((error: Error) => {
-        console.error('EntryFormAbility: updateForm failed -', error);
+         hilog.error(0x0000, TAG, `updateForm failed - ${error.message}`);
       });
     } catch (error) {
-      console.error('EntryFormAbility: onUpdateForm error -', error);
+       hilog.error(0x0000, TAG, `onUpdateForm error - ${error.message}`);
     }
   }
 
-  onRemoveForm(formId: string): void {
-    console.log('EntryFormAbility: onRemoveForm -', formId);
+   onRemoveForm(formId: string): void {
+    hilog.info(0x0000, TAG, `onRemoveForm - ${formId}`);
   }
 
   onFormEvent(formId: string, message: string) {
-    console.log('EntryFormAbility: onFormEvent -', formId, message);
+    hilog.info(0x0000, TAG, `onFormEvent - ${formId}, ${message}`);
   }
 
   onCastToNormalForm(formId: string): void {
-    console.log('EntryFormAbility: onCastToNormalForm -', formId);
+    hilog.info(0x0000, TAG, `onCastToNormalForm - ${formId}`);
   }
 
   onAcquireFormState(want: Want): formInfo.FormState {
