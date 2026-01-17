@@ -124,15 +124,14 @@ export class HTTPPollService {
         const formId = util.preferencesGet(preferences, CommonConstants.FORM_ID_KEY, '') as string;
         if (formId) {
           // 转换数据格式为FormData
-          const formCardData: FormCardData = {
-            id: data.id,
-            timestamp: data.timestamp,
-            active_module: data.active_module,
-            rule_engine: data.rule_engine,
-            dqn: data.dqn,
-            vlm: data.vlm,
-            favour: false
-          };
+          const formCardData = new FormCardData();
+          formCardData.id = data.id;
+          formCardData.timestamp = data.timestamp;
+          formCardData.active_module = data.active_module;
+          formCardData.rule_engine = data.rule_engine;
+          formCardData.dqn = data.dqn;
+          formCardData.vlm = data.vlm;
+          formCardData.favour = false;
 
           const formData = new FormData();
           formData.formTime = Date.now().toString();

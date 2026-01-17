@@ -9,28 +9,28 @@ export class FormData {
 /**
  * Card data for widget
  */
-interface ruleInterface {
+export interface RuleEngineData {
   category: string;
   decision: string;
   description?: string;
 }
 
-interface dqnInterface {
+export interface DQNData {
   action: string;
   type: string
 }
 
-interface vlmInterface {
+export interface VLMData {
   scene_category: string;
   description: string;
 };
 
-export interface FormCardData {
-  id: string;
-  active_module: string;
-  rule_engine?: ruleInterface;
-  dqn?: dqnInterface;
-  vlm?: vlmInterface;
-  timestamp: number;
-  favour: boolean;
+export class FormCardData {
+  id: string = '';
+  active_module: string = '';
+  rule_engine?: RuleEngineData;
+  dqn?: DQNData;
+  vlm?: VLMData;
+  timestamp: number = 0;
+  favour: boolean = false;
 }

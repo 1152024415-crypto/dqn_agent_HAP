@@ -36,11 +36,21 @@ export default class EntryFormAbility extends FormExtensionAbility {
       }
 
       let dataJson = util.preferencesGet(preferences, CommonConstants.DATA_KEY, '{}') as string;
-      let data = JSON.parse(dataJson) as FormCardData;
+      let jsonData = JSON.parse(dataJson);
+
+      // 转换为FormCardData对象
+      let formCardData = new FormCardData();
+      formCardData.id = jsonData.id || '';
+      formCardData.timestamp = jsonData.timestamp || 0;
+      formCardData.active_module = jsonData.active_module || '';
+      formCardData.rule_engine = jsonData.rule_engine;
+      formCardData.dqn = jsonData.dqn;
+      formCardData.vlm = jsonData.vlm;
+      formCardData.favour = false;
 
       let formData = new FormData();
       formData.formTime = Date.now().toString();
-      formData.cardList = [data];
+      formData.cardList = [formCardData];
       let formMsg = formBindingData.createFormBindingData(formData);
       formProvider.updateForm(formId, formMsg).then(() => {
         console.log('EntryFormAbility: updateForm success');
