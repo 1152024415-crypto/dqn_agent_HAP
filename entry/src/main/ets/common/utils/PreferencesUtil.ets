@@ -3,6 +3,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { common } from '@kit.AbilityKit';
 import { Context } from '@kit.AbilityKit';
+import { CommonConstants } from '../CommonConstants';
 
 const DOMAIN = 0x0000;
 const TAG: string = 'PreferencesUtil';
@@ -57,6 +58,35 @@ export class PreferencesUtil {
       let err = error as BusinessError;
       hilog.error(DOMAIN, TAG, `preferencesGet failed, error code=${err.code}, message=${err.message}`);
       return defaultValue;
+    }
+  }
+
+  // 添加formId到列表
+  addFormId(preferences: preferences.Preferences, formId: string): void {
+    try {
+      let formIdsJson = this.preferencesGet(preferences, CommonConstants.FORM_IDS_KEY, '[]');
+      let formIds: string[] = JSON.parse(formIdsJson);
+      
+      if (!formIds.includes(formId)) {
+        formIds.push(formId);
+        this.preferencesPut(preferences, CommonConstants.FORM_IDS_KEY, JSON.stringify(formIds));
+        hilog.info(DOMAIN, TAG, `Added formId to list: ${formId}, total: ${formIds.length}`);
+      }
+    } catch (error) {
+      let err = error as BusinessError;
+      hilog.error(DOMAIN, TAG, `addFormId failed, error code=${err.code}, message=${err.message}`);
+    }
+  }
+
+  // 获取所有formId列表
+  getAllFormIds(preferences: preferences.Preferences): string[] {
+    try {
+      let formIdsJson = this.preferencesGet(preferences, CommonConstants.FORM_IDS_KEY, '[]');
+      return JSON.parse(formIdsJson);
+    } catch (error) {
+      let err = error as BusinessError;
+      hilog.error(DOMAIN, TAG, `getAllFormIds failed, error code=${err.code}, message=${err.message}`);
+      return [];
     }
   }
 }

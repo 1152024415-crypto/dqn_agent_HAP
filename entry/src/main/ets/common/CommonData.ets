@@ -2,6 +2,7 @@
  * Form data class for widget
  */
 export class FormData {
+  formId: string = '';
   formTime: string = '';
   cardList: FormCardData[] = [];
 }

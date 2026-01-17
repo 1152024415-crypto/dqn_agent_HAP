@@ -121,9 +121,20 @@ export class HTTPPollService {
         util.preferencesPut(preferences, CommonConstants.DATA_KEY, jsonString);
         hilog.info(DOMAIN, 'HTTPPollService', 'Saved to Preferences: %{public}s', jsonString.substring(0, 200));
 
-        // 获取formId并更新Widget
-        const formId = util.preferencesGet(preferences, CommonConstants.FORM_ID_KEY, '') as string;
-        if (formId) {
+        // 获取所有formId并更新所有Widget
+        const formIds = util.getAllFormIds(preferences);
+        
+        if (formIds.length === 0) {
+          // 兼容旧版本：获取单个formId
+          const singleFormId = util.preferencesGet(preferences, CommonConstants.FORM_ID_KEY, '') as string;
+          if (singleFormId) {
+            formIds.push(singleFormId);
+          }
+        }
+        
+        if (formIds.length > 0) {
+          hilog.info(DOMAIN, 'HTTPPollService', 'Updating %{public}d forms: %{public}s', formIds.length, JSON.stringify(formIds));
+          
           // 转换数据格式为FormData
           const formCardData = new FormCardData();
           formCardData.id = data.id;
@@ -134,16 +145,25 @@ export class HTTPPollService {
           formCardData.vlm = data.vlm;
           formCardData.favour = false;
 
-          const formData = new FormData();
-          formData.formTime = Date.now().toString();
-          formData.cardList = [formCardData];
-
-          hilog.info(DOMAIN, 'HTTPPollService', 'FormData - formTime: %{public}s, cardList length: %{public}d', formData.formTime, formData.cardList.length);
           hilog.info(DOMAIN, 'HTTPPollService', 'FormCardData - id: %{public}s, module: %{public}s', formCardData.id, formCardData.active_module);
+          
+          // 为每个formId更新卡片
+          for (const formId of formIds) {
+            try {
+              const formData = new FormData();
+              formData.formId = formId;
+              formData.formTime = Date.now().toString();
+              formData.cardList = [formCardData];
 
-          const formMsg = formBindingData.createFormBindingData(formData);
-          await formProvider.updateForm(formId, formMsg);
-          hilog.info(DOMAIN, 'HTTPPollService', 'Form updated successfully: %{public}s', formId);
+              hilog.info(DOMAIN, 'HTTPPollService', 'FormData - formId: %{public}s, formTime: %{public}s, cardList length: %{public}d', formData.formId, formData.formTime, formData.cardList.length);
+
+              const formMsg = formBindingData.createFormBindingData(formData);
+              await formProvider.updateForm(formId, formMsg);
+              hilog.info(DOMAIN, 'HTTPPollService', 'Form updated successfully: %{public}s', formId);
+            } catch (error) {
+              hilog.error(DOMAIN, 'HTTPPollService', 'Failed to update form %{public}s: %{public}s', formId, JSON.stringify(error));
+            }
+          }
         } else {
           hilog.warn(DOMAIN, 'HTTPPollService', 'No formId found in Preferences');
         }

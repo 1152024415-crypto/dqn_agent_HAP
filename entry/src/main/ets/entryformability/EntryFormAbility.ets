@@ -3,6 +3,7 @@ import { Want } from '@kit.AbilityKit';
 import { FormData, FormCardData, RuleEngineData, DQNData, VLMData } from '../common/CommonData';
 import { CommonConstants } from '../common/CommonConstants';
 import { PreferencesUtil } from '../common/utils/PreferencesUtil';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const TAG: string = 'EntryFormAbility';
 
@@ -27,18 +28,27 @@ export default class EntryFormAbility extends FormExtensionAbility {
       let util = PreferencesUtil.getInstance();
       let preferences = util.getPreferences(this.context);
       if (preferences) {
+        // 保存当前formId（供单个卡片更新使用）
         util.preferencesPut(preferences, CommonConstants.FORM_ID_KEY, formId);
+        // 添加到formId列表（供批量更新使用）
+        util.addFormId(preferences, formId);
         console.log(`${TAG}: Saved formId to Preferences - ${formId}`);
       }
     } catch (error) {
       console.error(`${TAG}: Failed to save formId - ${error}`);
     }
 
-    return formBindingData.createFormBindingData('');
+    // 返回包含formTime的FormData（非空）
+    let formData = new FormData();
+    formData.formId = formId;
+    formData.formTime = Date.now().toString();
+    formData.cardList = []; // 初始为空
+    console.log(`${TAG}: onAddForm returning FormData with formTime: ${formData.formTime}, formId: ${formData.formId}`);
+    return formBindingData.createFormBindingData(formData);
   }
 
   onUpdateForm(formId: string) {
-    console.log(`${TAG}: onUpdateForm called with formId: ${formId}`);
+    hilog.info(0x0000, TAG, `FormAbility onUpdateForm, formId = ${formId}`);
     try {
       let util = PreferencesUtil.getInstance();
       let preferences = util.getPreferences(this.context);
@@ -64,9 +74,10 @@ export default class EntryFormAbility extends FormExtensionAbility {
       console.log(`${TAG}: FormCardData id: ${formCardData.id}, module: ${formCardData.active_module}`);
 
       let formData = new FormData();
+      formData.formId = formId;
       formData.formTime = Date.now().toString();
       formData.cardList = [formCardData];
-      console.log(`${TAG}: FormData cardList length: ${formData.cardList.length}`);
+      console.log(`${TAG}: FormData formId: ${formData.formId}, cardList length: ${formData.cardList.length}`);
 
       let formMsg = formBindingData.createFormBindingData(formData);
       formProvider.updateForm(formId, formMsg).then(() => {

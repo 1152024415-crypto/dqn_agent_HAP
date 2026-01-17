@@ -2,29 +2,33 @@ import { DataService } from '../../service/DataService';
 import { FormCardData, FormData } from '../../common/CommonData';
 import { VibrationService } from '../../service/VibrationService';
 
-@Entry
+let storageLocal = new LocalStorage();
+
+@Entry(storageLocal)
 @Component
 struct WidgetCard {
+  @LocalStorageProp('formTime') formTime: string = '';
+  @LocalStorageProp('formId') formId: string = '';
+  @LocalStorageProp('cardList') @Watch('onCardListChange') cardList: FormCardData[] = [];
   @State currentData: FormCardData | null = null;
 
   readonly fullWidthPercent: string = '100%';
   readonly fullHeightPercent: string = '100%';
 
-  onUpdateForm(formData: FormData) {
-    console.log('WidgetCard: onUpdateForm called');
-    console.log('WidgetCard: formData.formTime =', formData.formTime);
-    console.log('WidgetCard: formData.cardList length =', formData.cardList?.length);
+  onCardListChange() {
+    console.log('WidgetCard: cardList changed, length =', this.cardList?.length);
 
-    if (formData.cardList && formData.cardList.length > 0) {
-      this.currentData = formData.cardList[0];
-      console.log('WidgetCard: currentData set, id =', this.currentData.id);
-      console.log('WidgetCard: active_module =', this.currentData.active_module);
+    if (this.cardList && this.cardList.length > 0) {
+      this.currentData = this.cardList[0];
+      console.log('WidgetCard: currentData set, id =', this.currentData?.id);
+      console.log('WidgetCard: active_module =', this.currentData?.active_module);
 
       if (this.currentData?.dqn?.type) {
         VibrationService.vibrateByModule(this.currentData.active_module, this.currentData.dqn.type);
       }
     } else {
       console.log('WidgetCard: cardList is empty or undefined');
+      this.currentData = null;
     }
   }
 
