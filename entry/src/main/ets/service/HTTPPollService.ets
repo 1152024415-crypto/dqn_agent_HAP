@@ -7,6 +7,7 @@ import { DataService, RecommendationData } from './DataService';
 import { common } from '@kit.AbilityKit';
 import { formBindingData, formProvider, formInfo } from '@kit.FormKit';
 import { FormCardData, FormData } from '../common/CommonData';
+import { RuleEngineData, DQNData, VLMData } from '../common/CommonData';
 
 const DOMAIN = 0x0000;
 
@@ -128,9 +129,9 @@ export class HTTPPollService {
           formCardData.id = data.id;
           formCardData.timestamp = data.timestamp;
           formCardData.active_module = data.active_module;
-          formCardData.setRuleEngineData(data.rule_engine);
-          formCardData.setDQNData(data.dqn);
-          formCardData.setVLMData(data.vlm);
+          formCardData.rule_engine = data.rule_engine;
+          formCardData.dqn = data.dqn;
+          formCardData.vlm = data.vlm;
           formCardData.favour = false;
 
           const formData = new FormData();

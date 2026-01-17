@@ -1,31 +1,7 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { RuleEngineData, DQNData, VLMData } from '../common/CommonData';
 
 const DOMAIN = 0x0000;
-
-/**
- * Rule Engine data interface
- */
-export interface RuleEngineData {
-  category: string;
-  decision: string;
-  description?: string;
-}
-
-/**
- * DQN data interface
- */
-export interface DQNData {
-  action: string;
-  type: 'recommend' | 'probe';
-}
-
-/**
- * VLM data interface
- */
-export interface VLMData {
-  scene_category: string;
-  description: string;
-}
 
 /**
  * Recommendation data interface (new format)
@@ -34,7 +10,7 @@ export interface RecommendationData {
   id: string;
   timestamp: number;
   active_module: 'rule_engine' | 'dqn' | 'vlm';
-  
+
   rule_engine?: RuleEngineData;
   dqn?: DQNData;
   vlm?: VLMData;

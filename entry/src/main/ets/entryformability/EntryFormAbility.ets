@@ -53,9 +53,9 @@ export default class EntryFormAbility extends FormExtensionAbility {
       formCardData.id = jsonData.id ?? '';
       formCardData.timestamp = jsonData.timestamp ?? 0;
       formCardData.active_module = jsonData.active_module ?? '';
-      formCardData.setRuleEngineData(jsonData.rule_engine);
-      formCardData.setDQNData(jsonData.dqn);
-      formCardData.setVLMData(jsonData.vlm);
+      formCardData.rule_engine = jsonData.rule_engine;
+      formCardData.dqn = jsonData.dqn;
+      formCardData.vlm = jsonData.vlm;
       formCardData.favour = false;
 
       let formData = new FormData();

@@ -7,7 +7,7 @@ export class FormData {
 }
 
 /**
- * Card data for widget
+ * Rule Engine data interface
  */
 export interface RuleEngineData {
   category: string;
@@ -15,16 +15,25 @@ export interface RuleEngineData {
   description?: string;
 }
 
+/**
+ * DQN data interface
+ */
 export interface DQNData {
   action: string;
-  type: string
+  type: 'recommend' | 'probe';
 }
 
+/**
+ * VLM data interface
+ */
 export interface VLMData {
   scene_category: string;
   description: string;
-};
+}
 
+/**
+ * Card data for widget
+ */
 export class FormCardData {
   id: string = '';
   active_module: string = '';
@@ -33,23 +42,4 @@ export class FormCardData {
   vlm?: VLMData;
   timestamp: number = 0;
   favour: boolean = false;
-
-  // Helper methods to set nested data
-  setRuleEngineData(data: RuleEngineData | undefined): void {
-    if (data) {
-      this.rule_engine = data;
-    }
-  }
-
-  setDQNData(data: DQNData | undefined): void {
-    if (data) {
-      this.dqn = data;
-    }
-  }
-
-  setVLMData(data: VLMData | undefined): void {
-    if (data) {
-      this.vlm = data;
-    }
-  }
 }
