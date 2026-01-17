@@ -33,4 +33,23 @@ export class FormCardData {
   vlm?: VLMData;
   timestamp: number = 0;
   favour: boolean = false;
+
+  // Helper methods to set nested data
+  setRuleEngineData(data: RuleEngineData | undefined): void {
+    if (data) {
+      this.rule_engine = data;
+    }
+  }
+
+  setDQNData(data: DQNData | undefined): void {
+    if (data) {
+      this.dqn = data;
+    }
+  }
+
+  setVLMData(data: VLMData | undefined): void {
+    if (data) {
+      this.vlm = data;
+    }
+  }
 }

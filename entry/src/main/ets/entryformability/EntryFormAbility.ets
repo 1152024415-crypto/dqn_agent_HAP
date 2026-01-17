@@ -1,10 +1,20 @@
 import { formBindingData, FormExtensionAbility, formInfo, formProvider } from '@kit.FormKit';
 import { Want } from '@kit.AbilityKit';
-import { FormData, FormCardData } from '../common/CommonData';
+import { FormData, FormCardData, RuleEngineData, DQNData, VLMData } from '../common/CommonData';
 import { CommonConstants } from '../common/CommonConstants';
 import { PreferencesUtil } from '../common/utils/PreferencesUtil';
 
 const TAG: string = 'EntryFormAbility';
+
+// Interface for parsed JSON data
+interface JsonData {
+  id?: string;
+  timestamp?: number;
+  active_module?: string;
+  rule_engine?: RuleEngineData;
+  dqn?: DQNData;
+  vlm?: VLMData;
+}
 
 export default class EntryFormAbility extends FormExtensionAbility {
   onAddForm(want: Want): formBindingData.FormBindingData {
@@ -36,16 +46,16 @@ export default class EntryFormAbility extends FormExtensionAbility {
       }
 
       let dataJson = util.preferencesGet(preferences, CommonConstants.DATA_KEY, '{}') as string;
-      let jsonData = JSON.parse(dataJson);
+      let jsonData: JsonData = JSON.parse(dataJson) as JsonData;
 
       // 转换为FormCardData对象
       let formCardData = new FormCardData();
-      formCardData.id = jsonData.id || '';
-      formCardData.timestamp = jsonData.timestamp || 0;
-      formCardData.active_module = jsonData.active_module || '';
-      formCardData.rule_engine = jsonData.rule_engine;
-      formCardData.dqn = jsonData.dqn;
-      formCardData.vlm = jsonData.vlm;
+      formCardData.id = jsonData.id ?? '';
+      formCardData.timestamp = jsonData.timestamp ?? 0;
+      formCardData.active_module = jsonData.active_module ?? '';
+      formCardData.setRuleEngineData(jsonData.rule_engine);
+      formCardData.setDQNData(jsonData.dqn);
+      formCardData.setVLMData(jsonData.vlm);
       formCardData.favour = false;
 
       let formData = new FormData();

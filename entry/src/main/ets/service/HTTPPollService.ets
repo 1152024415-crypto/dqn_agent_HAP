@@ -128,9 +128,9 @@ export class HTTPPollService {
           formCardData.id = data.id;
           formCardData.timestamp = data.timestamp;
           formCardData.active_module = data.active_module;
-          formCardData.rule_engine = data.rule_engine;
-          formCardData.dqn = data.dqn;
-          formCardData.vlm = data.vlm;
+          formCardData.setRuleEngineData(data.rule_engine);
+          formCardData.setDQNData(data.dqn);
+          formCardData.setVLMData(data.vlm);
           formCardData.favour = false;
 
           const formData = new FormData();
