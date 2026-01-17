@@ -16,8 +16,8 @@ export default class EntryAbility extends UIAbility {
     }
     hilog.info(DOMAIN, 'EntryAbility', 'Ability onCreate');
 
-    // 启动HTTP轮询服务 - 使用PC的实际IP地址
-    httpPollService = new HTTPPollService(this.context, 'http://7.247.244.130:8080');
+    // 启动HTTP轮询服务 - 使用本地回环地址（USB连接）
+    httpPollService = new HTTPPollService(this.context, 'http://127.0.0.1:8080');
     httpPollService.startPolling();
   }
 
