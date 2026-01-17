@@ -38,14 +38,17 @@ export default class EntryFormAbility extends FormExtensionAbility {
   }
 
   onUpdateForm(formId: string) {
+    console.log(`${TAG}: onUpdateForm called with formId: ${formId}`);
     try {
       let util = PreferencesUtil.getInstance();
       let preferences = util.getPreferences(this.context);
       if (!preferences) {
+        console.error(`${TAG}: preferences is null`);
         return;
       }
 
       let dataJson = util.preferencesGet(preferences, CommonConstants.DATA_KEY, '{}') as string;
+      console.log(`${TAG}: dataJson length: ${dataJson.length}`);
       let jsonData: JsonData = JSON.parse(dataJson) as JsonData;
 
       // 转换为FormCardData对象
@@ -58,9 +61,13 @@ export default class EntryFormAbility extends FormExtensionAbility {
       formCardData.vlm = jsonData.vlm;
       formCardData.favour = false;
 
+      console.log(`${TAG}: FormCardData id: ${formCardData.id}, module: ${formCardData.active_module}`);
+
       let formData = new FormData();
       formData.formTime = Date.now().toString();
       formData.cardList = [formCardData];
+      console.log(`${TAG}: FormData cardList length: ${formData.cardList.length}`);
+
       let formMsg = formBindingData.createFormBindingData(formData);
       formProvider.updateForm(formId, formMsg).then(() => {
         console.log('EntryFormAbility: updateForm success');

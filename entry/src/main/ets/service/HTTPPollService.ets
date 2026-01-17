@@ -18,7 +18,7 @@ export class HTTPPollService {
   private pollTimer: number = -1;
   private context: common.UIAbilityContext | null = null;
 
-  constructor(context: common.UIAbilityContext, serverUrl: string = 'http://0.0.0.0:8080') {
+  constructor(context: common.UIAbilityContext, serverUrl: string = 'http://127.0.0.1:8080') {
     this.context = context;
     this.serverUrl = serverUrl;
   }
@@ -137,6 +137,9 @@ export class HTTPPollService {
           const formData = new FormData();
           formData.formTime = Date.now().toString();
           formData.cardList = [formCardData];
+
+          hilog.info(DOMAIN, 'HTTPPollService', 'FormData - formTime: %{public}s, cardList length: %{public}d', formData.formTime, formData.cardList.length);
+          hilog.info(DOMAIN, 'HTTPPollService', 'FormCardData - id: %{public}s, module: %{public}s', formCardData.id, formCardData.active_module);
 
           const formMsg = formBindingData.createFormBindingData(formData);
           await formProvider.updateForm(formId, formMsg);

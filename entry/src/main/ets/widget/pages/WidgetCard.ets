@@ -11,12 +11,20 @@ struct WidgetCard {
   readonly fullHeightPercent: string = '100%';
 
   onUpdateForm(formData: FormData) {
+    console.log('WidgetCard: onUpdateForm called');
+    console.log('WidgetCard: formData.formTime =', formData.formTime);
+    console.log('WidgetCard: formData.cardList length =', formData.cardList?.length);
+
     if (formData.cardList && formData.cardList.length > 0) {
       this.currentData = formData.cardList[0];
-      
+      console.log('WidgetCard: currentData set, id =', this.currentData.id);
+      console.log('WidgetCard: active_module =', this.currentData.active_module);
+
       if (this.currentData?.dqn?.type) {
         VibrationService.vibrateByModule(this.currentData.active_module, this.currentData.dqn.type);
       }
+    } else {
+      console.log('WidgetCard: cardList is empty or undefined');
     }
   }
 
