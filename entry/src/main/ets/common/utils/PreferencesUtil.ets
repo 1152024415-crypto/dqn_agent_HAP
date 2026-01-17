@@ -1,6 +1,8 @@
 import { preferences } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { common } from '@kit.AbilityKit';
+import { Context } from '@kit.AbilityKit';
 
 const DOMAIN = 0x0000;
 const TAG: string = 'PreferencesUtil';

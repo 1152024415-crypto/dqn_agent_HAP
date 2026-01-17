@@ -11,10 +11,20 @@ export default class EntryFormAbility extends FormExtensionAbility {
     if (!want || !want.parameters) {
       return formBindingData.createFormBindingData('');
     }
-    do {
-      let formId: string = want.parameters[formInfo.FormParam.IDENTITY_KEY] as string;
-      return formBindingData.createFormBindingData('');
-    } while (0);
+    let formId: string = want.parameters[formInfo.FormParam.IDENTITY_KEY] as string;
+
+    try {
+      let util = PreferencesUtil.getInstance();
+      let preferences = util.getPreferences(this.context);
+      if (preferences) {
+        util.preferencesPut(preferences, CommonConstants.FORM_ID_KEY, formId);
+        console.log(`${TAG}: Saved formId to Preferences - ${formId}`);
+      }
+    } catch (error) {
+      console.error(`${TAG}: Failed to save formId - ${error}`);
+    }
+
+    return formBindingData.createFormBindingData('');
   }
 
   onUpdateForm(formId: string) {

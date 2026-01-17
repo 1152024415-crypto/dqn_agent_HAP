@@ -1,11 +1,11 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import { HTTPService } from '../service/HTTPService';
+import { HTTPPollService } from '../service/HTTPPollService';
 
 const DOMAIN = 0x0000;
 
-let httpService: HTTPService | null = null;
+let httpPollService: HTTPPollService | null = null;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -16,15 +16,16 @@ export default class EntryAbility extends UIAbility {
     }
     hilog.info(DOMAIN, 'EntryAbility', 'Ability onCreate');
 
-    httpService = new HTTPService(this.context);
-    httpService.startServer();
+    // 启动HTTP轮询服务 - 使用PC的实际IP地址
+    httpPollService = new HTTPPollService(this.context, 'http://7.247.244.130:8080');
+    httpPollService.startPolling();
   }
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'EntryAbility', 'Ability onDestroy');
 
-    if (httpService) {
-      httpService.stopServer();
+    if (httpPollService) {
+      httpPollService.stopPolling();
     }
   }
 

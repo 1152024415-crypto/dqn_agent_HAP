@@ -69,6 +69,14 @@
         }
       },
       {
+        "name": "ohos.permission.GET_NETWORK_INFO",
+        "reason": "$string:permission_internet_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
+      },
+      {
         "name": "ohos.permission.VIBRATE",
         "reason": "$string:permission_vibrate_reason",
         "usedScene": {

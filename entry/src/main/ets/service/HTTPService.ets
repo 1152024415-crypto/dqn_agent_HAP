@@ -45,33 +45,51 @@ export class HTTPService {
         }
       });
 
-      this.tcpServer.on('connect', (clientSocket: socket.TCPSocketConnection) => {
+      this.tcpServer.on('connect', async (clientSocket: socket.TCPSocketConnection) => {
         try {
-          const clientAddress = this.getClientAddress(clientSocket);
+          const clientAddress = await this.getClientAddress(clientSocket);
           hilog.info(DOMAIN, 'HTTPService', 'New client connected from: %{public}s', clientAddress);
         } catch (error) {
           hilog.error(DOMAIN, 'HTTPService', 'Failed to get client address: %{public}s', JSON.stringify(error));
         }
 
         let requestData = '';
+        let hasResponded = false;
 
         clientSocket.on('message', (msgInfo: socket.SocketMessageInfo) => {
           try {
+            if (hasResponded) {
+              return;
+            }
+
             const requestString = this.arrayBufferToString(msgInfo.message);
             requestData += requestString;
-            hilog.info(DOMAIN, 'HTTPService', 'Received request data: %{public}s', requestString.substring(0, Math.min(200, requestString.length)));
+            hilog.info(DOMAIN, 'HTTPService', 'Received chunk: %{public}d bytes, total: %{public}d bytes', 
+                requestString.length, requestData.length);
+            hilog.info(DOMAIN, 'HTTPService', 'Chunk content: %{public}s', requestString);
 
-            const response = this.handleRequest(requestString);
-            clientSocket.send({ data: response });
-
-            hilog.info(DOMAIN, 'HTTPService', 'Response sent: %{public}s', response.substring(0, 100));
+            if (requestData.includes('\r\n\r\n')) {
+              hilog.info(DOMAIN, 'HTTPService', 'Complete HTTP request received, processing...');
+              hilog.info(DOMAIN, 'HTTPService', 'Full request: %{public}s', requestData);
+              const response = this.handleRequest(requestData);
+              hilog.info(DOMAIN, 'HTTPService', 'About to send response, length: %{public}d', response.length);
+              clientSocket.send({ data: response });
+              hilog.info(DOMAIN, 'HTTPService', 'Response sent successfully: %{public}s', response.substring(0, 100));
+              hasResponded = true;
+            } else {
+              hilog.info(DOMAIN, 'HTTPService', 'Incomplete request, waiting for more data...');
+            }
           } catch (error) {
             hilog.error(DOMAIN, 'HTTPService', 'Error handling request: %{public}s', JSON.stringify(error));
           }
         });
 
         clientSocket.on('close', () => {
-          hilog.info(DOMAIN, 'HTTPService', 'Client disconnected (normal close)');
+          hilog.info(DOMAIN, 'HTTPService', 'Client disconnected (normal close), total bytes received: %{public}d', requestData.length);
+          if (!hasResponded && requestData.length > 0) {
+            hilog.warn(DOMAIN, 'HTTPService', 'Client disconnected before response, received partial data: %{public}s', 
+                requestData.substring(0, Math.min(200, requestData.length)));
+          }
         });
 
         clientSocket.on('error', (error: Error) => {
@@ -98,9 +116,9 @@ export class HTTPService {
     }
   }
 
-  private getClientAddress(clientSocket: socket.TCPSocketConnection): string {
+  private async getClientAddress(clientSocket: socket.TCPSocketConnection): Promise<string> {
     try {
-      const remoteAddress = clientSocket.getRemoteAddress();
+      const remoteAddress = await clientSocket.getRemoteAddress();
       if (remoteAddress && remoteAddress.address) {
         return `${remoteAddress.address}:${remoteAddress.port}`;
       }
