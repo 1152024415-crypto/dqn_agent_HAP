@@ -1,6 +1,7 @@
 import { DataService } from '../../service/DataService';
 import { FormCardData, FormData } from '../../common/CommonData';
 import formProvider from '@kit.FormKit';
+import { BorderStyle } from '@kit.ArkUI';
 
 let storageLocal = new LocalStorage();
 
@@ -77,15 +78,26 @@ struct WidgetCard {
           }
           .margin({ right: 8 })
 
-          // 动作类型标签
+          // 动作类型标签（图标+文字）
           if (this.currentData?.action_data) {
-            Text(DataService.getActionTypeLabel(this.currentData.action_data.action_type))
-              .fontSize(11)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(DataService.getActionTypeLabelTextColor(this.currentData.action_data.action_type))
-              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-              .backgroundColor(DataService.getActionTypeLabelBgColor(this.currentData.action_data.action_type))
-              .borderRadius(20)
+            Row() {
+              Text(this.getActionTypeIcon(this.currentData.action_data.action_type))
+                .fontSize(10)
+                .margin({ right: 4 })
+              
+              Text(this.getActionTypeShortLabel(this.currentData.action_data.action_type))
+                .fontSize(11)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(DataService.getActionTypeLabelTextColor(this.currentData.action_data.action_type))
+            }
+            .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+            .backgroundColor(DataService.getActionTypeLabelBgColor(this.currentData.action_data.action_type))
+            .borderRadius(20)
+            .border({
+              width: 1,
+              color: this.getActionTypeBorderColor(this.currentData.action_data.action_type),
+              style: BorderStyle.Solid
+            })
           }
         }
         .alignItems(VerticalAlign.Center)
@@ -151,7 +163,7 @@ struct WidgetCard {
         if (this.currentData.action_data.action_name && this.currentData.action_data.action_name !== 'NONE') {
           Column({ space: 6 }) {
             Row() {
-              Text('⚡')
+               Text(this.getActionTypeIcon(this.currentData.action_data.action_type))
                 .fontSize(12)
                 .margin({ right: 8 })
               
@@ -170,7 +182,12 @@ struct WidgetCard {
           }
           .width('100%')
           .padding({ top: 12, bottom: 12, left: 14, right: 14 })
-          .backgroundColor(this.getActionNameBgColor())
+           .backgroundColor(this.getActionNameBgColor())
+          .border({
+            width: 2,
+            color: this.getActionTypeBorderColor(this.currentData.action_data.action_type),
+            style: BorderStyle.Solid
+          })
           .borderRadius(10)
           .shadow({
             radius: 4,
@@ -346,6 +363,45 @@ struct WidgetCard {
         return '#F5F5F5';  // 更浅的灰色
       default:
         return '#F8F9FA';
+    }
+  }
+
+  private getActionTypeIcon(actionType: string): string {
+    switch (actionType) {
+      case 'probe':
+        return '🔍';  // 放大镜图标
+      case 'recommend':
+        return '💡';  // 灯泡图标
+      case 'none':
+        return '⚪';  // 圆圈图标
+      default:
+        return '⚡';  // 默认闪电图标
+    }
+  }
+
+  private getActionTypeBorderColor(actionType: string): string {
+    switch (actionType) {
+      case 'probe':
+        return '#1890FF';  // 蓝色边框
+      case 'recommend':
+        return '#52C41A';  // 绿色边框
+      case 'none':
+        return '#666666';  // 灰色边框
+      default:
+        return '#D9D9D9';  // 默认灰色
+    }
+  }
+
+  private getActionTypeShortLabel(actionType: string): string {
+    switch (actionType) {
+      case 'probe':
+        return 'Probe';
+      case 'recommend':
+        return 'Recommend';
+      case 'none':
+        return 'None';
+      default:
+        return 'Unknown';
     }
   }
 
