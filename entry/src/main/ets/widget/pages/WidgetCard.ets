@@ -1,7 +1,6 @@
 import { DataService } from '../../service/DataService';
 import { FormCardData, FormData } from '../../common/CommonData';
 import formProvider from '@kit.FormKit';
-import { borderStyles } from '@kit.ArkUI';
 
 let storageLocal = new LocalStorage();
 
@@ -95,8 +94,7 @@ struct WidgetCard {
             .borderRadius(20)
             .border({
               width: 1,
-              color: this.getActionTypeBorderColor(this.currentData.action_data.action_type),
-              style: borderStyles.solid
+              color: this.getActionTypeBorderColor(this.currentData.action_data.action_type)
             })
           }
         }
@@ -185,8 +183,7 @@ struct WidgetCard {
            .backgroundColor(this.getActionNameBgColor())
           .border({
             width: 2,
-            color: this.getActionTypeBorderColor(this.currentData.action_data.action_type),
-            style: borderStyles.Solid
+            color: this.getActionTypeBorderColor(this.currentData.action_data.action_type)
           })
           .borderRadius(10)
           .shadow({
