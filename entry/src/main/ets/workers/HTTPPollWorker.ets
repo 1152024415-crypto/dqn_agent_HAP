@@ -3,6 +3,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { worker, ThreadWorkerGlobalScope, MessageEvents, ErrorEvent } from '@kit.ArkTS';
 import { DataService, RecommendationData } from '../service/DataService';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { CommonConstants } from '../common/CommonConstants';
 
 const workerPort: ThreadWorkerGlobalScope = worker.workerPort;
 const DOMAIN = 0x0000;
@@ -18,7 +19,6 @@ interface WorkerResponse {
 }
 
 // 配置
-const SERVER_URL = 'http://127.0.0.1:8080';
 const POLL_INTERVAL = 2000; // 2秒
 
 let pollingTimer: number | null = null;
@@ -79,7 +79,7 @@ function stopPolling(): void {
 // 轮询数据
 async function pollData(): Promise<void> {
   try {
-    const url = `${SERVER_URL}/latest-recommendation`;
+    const url = `${CommonConstants.SERVER_URL}/latest-recommendation`;
     
     const httpRequest = http.createHttp();
     const response = await httpRequest.request(url, {

@@ -8,6 +8,7 @@ import { wantAgent, WantAgent } from '@kit.AbilityKit';
 import vibrator from '@ohos.vibrator';
 import { HTTPPollService } from '../service/HTTPPollService';
 import { RecommendationData } from '../service/DataService';
+import { CommonConstants } from '../common/CommonConstants';
 
 const DOMAIN = 0x0000;
 
@@ -77,7 +78,7 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'EntryAbility', 'Ability onCreate');
 
     // 创建HTTP轮询服务实例（用于数据处理）
-    httpPollService = new HTTPPollService(this.context, 'http://127.0.0.1:8080');
+    httpPollService = new HTTPPollService(this.context, CommonConstants.SERVER_URL);
     
     // 请求震动权限
     try {

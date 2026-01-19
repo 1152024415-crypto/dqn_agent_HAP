@@ -18,7 +18,7 @@ export class HTTPPollService {
   private pollTimer: number = -1;
   private context: common.Context;
 
-  constructor(context: common.Context, serverUrl: string = 'http://127.0.0.1:8080') {
+  constructor(context: common.Context, serverUrl: string = CommonConstants.SERVER_URL) {
     this.context = context;
     this.serverUrl = serverUrl;
   }
