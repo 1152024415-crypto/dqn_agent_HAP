@@ -1,10 +1,11 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want, abilityAccessCtrl } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { worker, ErrorEvent, MessageEvents } from '@kit.ArkTS';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { wantAgent, WantAgent } from '@kit.AbilityKit';
+import vibrator from '@ohos.vibrator';
 import { HTTPPollService } from '../service/HTTPPollService';
 import { RecommendationData } from '../service/DataService';
 
@@ -19,6 +20,8 @@ interface WorkerMessage {
 interface WorkerCommand {
   command?: 'start' | 'stop' | 'config';
 }
+
+
 
 let httpPollService: HTTPPollService | null = null;
 let pollWorker: worker.ThreadWorker | null = null;
@@ -75,6 +78,16 @@ export default class EntryAbility extends UIAbility {
 
     // 创建HTTP轮询服务实例（用于数据处理）
     httpPollService = new HTTPPollService(this.context, 'http://127.0.0.1:8080');
+    
+    // 请求震动权限
+    try {
+      const atManager = abilityAccessCtrl.createAtManager();
+      await atManager.requestPermissionsFromUser(this.context, ['ohos.permission.VIBRATE']);
+      hilog.info(DOMAIN, 'EntryAbility', 'Vibrate permission granted or already had');
+    } catch (error) {
+      const err = error as BusinessError;
+      hilog.error(DOMAIN, 'EntryAbility', 'Failed to request vibrate permission: %{public}s', JSON.stringify(err));
+    }
     
     // 启动长时后台任务
     await this.startBackgroundTask();

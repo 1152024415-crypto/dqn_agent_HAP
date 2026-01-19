@@ -1,6 +1,6 @@
 import { DataService } from '../../service/DataService';
 import { FormCardData, FormData } from '../../common/CommonData';
-import { VibrationService } from '../../service/VibrationService';
+import formProvider from '@kit.FormKit';
 
 let storageLocal = new LocalStorage();
 
@@ -20,17 +20,13 @@ struct WidgetCard {
     // formTime变化表示数据已更新，可以触发额外处理
   }
 
-  onCardListChange() {
+   onCardListChange() {
     console.log('WidgetCard: cardList changed, length =', this.cardList?.length);
 
     if (this.cardList && this.cardList.length > 0) {
       this.currentData = this.cardList[0];
       console.log('WidgetCard: currentData set, id =', this.currentData?.id);
       console.log('WidgetCard: active_module =', this.currentData?.active_module);
-
-      if (this.currentData?.dqn?.type) {
-        VibrationService.vibrateByModule(this.currentData.active_module, this.currentData.dqn.type);
-      }
     } else {
       console.log('WidgetCard: cardList is empty or undefined');
       this.currentData = null;

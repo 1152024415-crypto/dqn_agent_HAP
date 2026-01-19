@@ -8,6 +8,7 @@ import { common } from '@kit.AbilityKit';
 import { formBindingData, formProvider, formInfo } from '@kit.FormKit';
 import { FormCardData, FormData } from '../common/CommonData';
 import { RuleEngineData, DQNData, VLMData } from '../common/CommonData';
+import vibrator from '@ohos.vibrator';
 
 const DOMAIN = 0x0000;
 
@@ -106,6 +107,28 @@ export class HTTPPollService {
     }
   }
 
+   private async triggerVibration(duration: number = 800): Promise<void> {
+    try {
+      if (!this.context) {
+        hilog.warn(DOMAIN, 'HTTPPollService', 'Cannot trigger vibration: context is null');
+        return;
+      }
+
+      await vibrator.startVibration({
+        type: 'time',
+        duration: duration
+      }, {
+        usage: 'notification'
+      });
+      
+      hilog.info(DOMAIN, 'HTTPPollService', 'Vibration triggered: %{public}dms', duration);
+    } catch (error) {
+      const err = error as BusinessError;
+      hilog.error(DOMAIN, 'HTTPPollService', 'Vibration failed: code=%{public}d, message=%{public}s', 
+        err?.code || -1, err?.message || JSON.stringify(error));
+    }
+  }
+
    public async saveToPreferences(data: RecommendationData): Promise<void> {
     if (!this.context) {
       hilog.error(DOMAIN, 'HTTPPollService', 'Context is null');
@@ -120,6 +143,9 @@ export class HTTPPollService {
         const jsonString = JSON.stringify(data);
         util.preferencesPut(preferences, CommonConstants.DATA_KEY, jsonString);
         hilog.info(DOMAIN, 'HTTPPollService', 'Saved to Preferences: %{public}s', jsonString.substring(0, 200));
+
+        // 触发震动（数据到达时立即反馈）
+        await this.triggerVibration(800);
 
         // 获取所有formId并更新所有Widget
         const formIds = util.getAllFormIds(preferences);
