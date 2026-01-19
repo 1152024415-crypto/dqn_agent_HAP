@@ -8,28 +8,13 @@ export class FormData {
 }
 
 /**
- * Rule Engine data interface
+ * Unified action data interface
  */
-export interface RuleEngineData {
-  category: string;
-  decision: string;
-  description?: string;
-}
-
-/**
- * DQN data interface
- */
-export interface DQNData {
-  action: string;
-  type: 'recommend' | 'probe';
-}
-
-/**
- * VLM data interface
- */
-export interface VLMData {
+export interface ActionData {
+  action_type: 'probe' | 'recommend' | 'none';
+  action_name: string;
+  image: string | null;  // base64 encoded image or null
   scene_category: string;
-  description: string;
 }
 
 /**
@@ -37,10 +22,12 @@ export interface VLMData {
  */
 export class FormCardData {
   id: string = '';
-  active_module: string = '';
-  rule_engine?: RuleEngineData;
-  dqn?: DQNData;
-  vlm?: VLMData;
   timestamp: number = 0;
+  action_data: ActionData = {
+    action_type: 'none',
+    action_name: '',
+    image: null,
+    scene_category: ''
+  };
   favour: boolean = false;
 }

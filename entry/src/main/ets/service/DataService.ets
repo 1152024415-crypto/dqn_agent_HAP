@@ -1,19 +1,18 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { RuleEngineData, DQNData, VLMData } from '../common/CommonData';
+import { ActionData } from '../common/CommonData';
 
 const DOMAIN = 0x0000;
 
 /**
- * Recommendation data interface (new format)
+ * Recommendation data interface (new unified format)
  */
 export interface RecommendationData {
   id: string;
   timestamp: number;
-  active_module: 'rule_engine' | 'dqn' | 'vlm';
-
-  rule_engine?: RuleEngineData;
-  dqn?: DQNData;
-  vlm?: VLMData;
+  action_type: 'probe' | 'recommend' | 'none';
+  action_name: string;
+  image: string | null;  // base64 encoded image or null
+  scene_category: string;
 }
 
 /**
@@ -22,10 +21,10 @@ export interface RecommendationData {
 interface JsonData {
   id?: string;
   timestamp?: number;
-  active_module?: string;
-  rule_engine?: RuleEngineData;
-  dqn?: DQNData;
-  vlm?: VLMData;
+  action_type?: string;
+  action_name?: string;
+  image?: string | null;
+  scene_category?: string;
 }
 
 /**
@@ -40,42 +39,33 @@ export class DataService {
       const data: JsonData = JSON.parse(jsonString);
 
       // Validate required fields
-      if (!data.id || !data.timestamp || !data.active_module) {
+      if (!data.id || !data.timestamp || !data.action_type || !data.action_name || !data.scene_category) {
         hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing required fields in data');
         return null;
       }
 
-      // Validate active_module field
-      if (data.active_module !== 'rule_engine' &&
-          data.active_module !== 'dqn' &&
-          data.active_module !== 'vlm') {
-        hilog.warn(DOMAIN, 'DataServiceHAP', 'Invalid active_module: %{public}s', data.active_module);
+      // Validate action_type field
+      if (data.action_type !== 'probe' && data.action_type !== 'recommend' && data.action_type !== 'none') {
+        hilog.warn(DOMAIN, 'DataServiceHAP', 'Invalid action_type: %{public}s', data.action_type);
         return null;
       }
 
-      // Validate module data based on active_module
-      if (data.active_module === 'rule_engine' && !data.rule_engine) {
-        hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing rule_engine data');
-        return null;
+      // Validate action_name field
+      if (!DataService.isValidAction(data.action_name)) {
+        hilog.warn(DOMAIN, 'DataServiceHAP', 'Invalid action_name: %{public}s', data.action_name);
+        // Continue anyway, as action names may evolve
       }
 
-      if (data.active_module === 'dqn' && !data.dqn) {
-        hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing dqn data');
-        return null;
-      }
-
-      if (data.active_module === 'vlm' && (!data.dqn || !data.vlm)) {
-        hilog.warn(DOMAIN, 'DataServiceHAP', 'Missing dqn or vlm data for vlm module');
-        return null;
-      }
+      // image can be null or string
+      const image = data.image === undefined ? null : data.image;
 
       return {
         id: data.id,
         timestamp: data.timestamp,
-        active_module: data.active_module as 'rule_engine' | 'dqn' | 'vlm',
-        rule_engine: data.rule_engine,
-        dqn: data.dqn,
-        vlm: data.vlm
+        action_type: data.action_type as 'probe' | 'recommend' | 'none',
+        action_name: data.action_name,
+        image: image,
+        scene_category: data.scene_category
       };
 
     } catch (error) {
@@ -125,48 +115,48 @@ export class DataService {
   }
 
   /**
-   * Get module label text
+   * Get action type label text
    */
-  static getModuleLabel(activeModule: string): string {
-    switch (activeModule) {
-      case 'rule_engine':
-        return '[Rule]';
-      case 'dqn':
-        return '[DQN]';
-      case 'vlm':
-        return '[VLM]';
+  static getActionTypeLabel(actionType: string): string {
+    switch (actionType) {
+      case 'probe':
+        return '[Probe]';
+      case 'recommend':
+        return '[Recommend]';
+      case 'none':
+        return '[None]';
       default:
         return '[Unknown]';
     }
   }
 
   /**
-   * Get module label background color
+   * Get action type label background color
    */
-  static getModuleLabelBgColor(activeModule: string): string {
-    switch (activeModule) {
-      case 'rule_engine':
-        return '#E0E0E0';
-      case 'dqn':
-        return '#E6F7FF';
-      case 'vlm':
-        return '#F9F0FF';
+  static getActionTypeLabelBgColor(actionType: string): string {
+    switch (actionType) {
+      case 'probe':
+        return '#E6F7FF';  // light blue for probe
+      case 'recommend':
+        return '#E8F5E9';  // light green for recommend
+      case 'none':
+        return '#E0E0E0';  // gray for none
       default:
         return '#E0E0E0';
     }
   }
 
   /**
-   * Get module label text color
+   * Get action type label text color
    */
-  static getModuleLabelTextColor(activeModule: string): string {
-    switch (activeModule) {
-      case 'rule_engine':
-        return '#666666';
-      case 'dqn':
-        return '#1890FF';
-      case 'vlm':
-        return '#722ED1';
+  static getActionTypeLabelTextColor(actionType: string): string {
+    switch (actionType) {
+      case 'probe':
+        return '#1890FF';  // blue for probe
+      case 'recommend':
+        return '#52C41A';  // green for recommend
+      case 'none':
+        return '#666666';  // dark gray for none
       default:
         return '#666666';
     }

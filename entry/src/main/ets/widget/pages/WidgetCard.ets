@@ -26,7 +26,7 @@ struct WidgetCard {
     if (this.cardList && this.cardList.length > 0) {
       this.currentData = this.cardList[0];
       console.log('WidgetCard: currentData set, id =', this.currentData?.id);
-      console.log('WidgetCard: active_module =', this.currentData?.active_module);
+      console.log('WidgetCard: action_data =', this.currentData?.action_data);
     } else {
       console.log('WidgetCard: cardList is empty or undefined');
       this.currentData = null;
@@ -54,13 +54,14 @@ struct WidgetCard {
           .height(8)
           .fill('#52C41A')
 
-        if (this.currentData) {
-          Text(this.getModuleLabel(this.currentData.active_module))
+
+        if (this.currentData?.action_data) {
+          Text(DataService.getActionTypeLabel(this.currentData.action_data.action_type))
             .fontSize(12)
             .fontWeight(FontWeight.Bold)
-            .fontColor(this.getModuleLabelTextColor(this.currentData.active_module))
+            .fontColor(DataService.getActionTypeLabelTextColor(this.currentData.action_data.action_type))
             .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-            .backgroundColor(this.getModuleLabelBgColor(this.currentData.active_module))
+            .backgroundColor(DataService.getActionTypeLabelBgColor(this.currentData.action_data.action_type))
             .borderRadius(6)
             .margin({ left: 8 })
         }
@@ -100,174 +101,88 @@ struct WidgetCard {
   }
 
   @Builder
-  actionContent(): void {
+  actionContent() {
     Column({ space: 12 }) {
-      if (this.currentData) {
-        if (this.currentData.active_module === 'rule_engine') {
-          this.ruleEngineContent();
-        } else if (this.currentData.active_module === 'dqn') {
-          this.dqnContent();
-        } else if (this.currentData.active_module === 'vlm') {
-          this.vlmContent();
-        }
-      }
-    }
-  }
+      if (this.currentData?.action_data) {
 
-  @Builder
-  ruleEngineContent(): void {
-    Column({ space: 12 }) {
-      if (this.currentData?.rule_engine?.category) {
-        Column({ space: 4 }) {
-          Text('Category')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.currentData.rule_engine.category)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#333333')
-        }
-        .width('100%')
-      }
 
-      if (this.currentData?.rule_engine?.decision) {
-        Column({ space: 4 }) {
-          Text('Decision')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.currentData.rule_engine.decision)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#333333')
-        }
-        .width('100%')
-      }
-
-      if (this.currentData?.rule_engine?.description) {
-        Column({ space: 4 }) {
-          Text('Description')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.currentData.rule_engine.description)
-            .fontSize(14)
-            .fontColor('#333333')
-            .lineHeight(20)
-            .maxLines(3)
-        }
-        .width('100%')
-      }
-    }
-  }
-
-  @Builder
-  dqnContent(): void {
-    Column({ space: 12 }) {
-      if (this.currentData?.dqn?.type) {
+        // Action type badge
         Row() {
-          Text(this.currentData.dqn.type === 'recommend' ? 'RECOMMEND' : 'PROBE')
+          Text(DataService.getActionTypeLabel(this.currentData.action_data.action_type))
             .fontSize(14)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
+            .fontColor(DataService.getActionTypeLabelTextColor(this.currentData.action_data.action_type))
             .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-            .backgroundColor(this.currentData.dqn.type === 'recommend' ? '#1890FF' : '#722ED1')
+            .backgroundColor(DataService.getActionTypeLabelBgColor(this.currentData.action_data.action_type))
             .borderRadius(12)
         }
         .width('100%')
-      }
 
-      if (this.currentData?.dqn?.action) {
-        Column({ space: 4 }) {
-          Text('Action')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.currentData.dqn.action)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#333333')
+        // Action name
+        if (this.currentData.action_data.action_name && this.currentData.action_data.action_name !== 'NONE') {
+          Column({ space: 4 }) {
+            Text('Action')
+              .fontSize(12)
+              .fontColor('#999999')
+            Text(this.currentData.action_data.action_name)
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#333333')
+          }
+          .width('100%')
         }
-        .width('100%')
-      }
 
-      if (this.currentData?.timestamp) {
-        Row() {
-          Text(`Updated: ${DataService.formatTime(this.currentData.timestamp)}`)
-            .fontSize(11)
-            .fontColor('#999999')
+        // Scene category
+        if (this.currentData.action_data.scene_category) {
+          Column({ space: 4 }) {
+            Text('Scene')
+              .fontSize(12)
+              .fontColor('#999999')
+            Text(this.currentData.action_data.scene_category)
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#333333')
+          }
+          .width('100%')
         }
-        .width('100%')
+
+        // Image display (if available)
+        if (this.currentData.action_data.image) {
+          Column({ space: 4 }) {
+            Text('Image')
+              .fontSize(12)
+              .fontColor('#999999')
+            Image(this.currentData.action_data.image)
+              .width(120)
+              .height(120)
+              .objectFit(ImageFit.Contain)
+              .borderRadius(8)
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Center)
+        }
+
+        // Timestamp
+        if (this.currentData.timestamp) {
+          Row() {
+            Text(`Updated: ${DataService.formatTime(this.currentData.timestamp)}`)
+              .fontSize(11)
+              .fontColor('#999999')
+          }
+          .width('100%')
+        }
       }
     }
   }
 
-  @Builder
-  vlmContent(): void {
-    Column({ space: 12 }) {
-      if (this.currentData?.dqn?.type) {
-        Row() {
-          Text(this.currentData.dqn.type === 'recommend' ? 'RECOMMEND' : 'PROBE')
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-            .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-            .backgroundColor(this.currentData.dqn.type === 'recommend' ? '#1890FF' : '#722ED1')
-            .borderRadius(12)
-        }
-        .width('100%')
-      }
 
-      if (this.currentData?.vlm?.scene_category) {
-        Column({ space: 4 }) {
-          Text('Scene')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.currentData.vlm.scene_category)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#333333')
-        }
-        .width('100%')
-      }
 
-      if (this.currentData?.dqn?.action) {
-        Column({ space: 4 }) {
-          Text('Action')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.currentData.dqn.action)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#333333')
-        }
-        .width('100%')
-      }
 
-      if (this.currentData?.vlm?.description) {
-        Column({ space: 4 }) {
-          Text('Analysis')
-            .fontSize(12)
-            .fontColor('#999999')
-          Text(this.currentData.vlm.description)
-            .fontSize(14)
-            .fontColor('#333333')
-            .lineHeight(20)
-            .maxLines(3)
-        }
-        .width('100%')
-      }
 
-      if (this.currentData?.timestamp) {
-        Row() {
-          Text(`Updated: ${DataService.formatTime(this.currentData.timestamp)}`)
-            .fontSize(11)
-            .fontColor('#999999')
-        }
-        .width('100%')
-      }
-    }
-  }
 
-  @Builder
-  statusContent(): void {
+
+   @Builder
+  statusContent() {
     Column({ space: 12 }) {
       Text('⏳')
         .fontSize(32)

@@ -1,6 +1,6 @@
 import { formBindingData, FormExtensionAbility, formInfo, formProvider } from '@kit.FormKit';
 import { Want } from '@kit.AbilityKit';
-import { FormData, FormCardData, RuleEngineData, DQNData, VLMData } from '../common/CommonData';
+import { FormData, FormCardData, ActionData } from '../common/CommonData';
 import { CommonConstants } from '../common/CommonConstants';
 import { PreferencesUtil } from '../common/utils/PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -11,10 +11,10 @@ const TAG: string = 'EntryFormAbility';
 interface JsonData {
   id?: string;
   timestamp?: number;
-  active_module?: string;
-  rule_engine?: RuleEngineData;
-  dqn?: DQNData;
-  vlm?: VLMData;
+  action_type?: string;
+  action_name?: string;
+  image?: string | null;
+  scene_category?: string;
 }
 
 export default class EntryFormAbility extends FormExtensionAbility {
@@ -61,17 +61,21 @@ export default class EntryFormAbility extends FormExtensionAbility {
        hilog.info(0x0000, TAG, `dataJson length: ${dataJson.length}`);
       let jsonData: JsonData = JSON.parse(dataJson) as JsonData;
 
-      // 转换为FormCardData对象
+       // Convert to FormCardData object
+      const actionData: ActionData = {
+        action_type: (jsonData.action_type as 'probe' | 'recommend' | 'none') ?? 'none',
+        action_name: jsonData.action_name ?? '',
+        image: jsonData.image ?? null,
+        scene_category: jsonData.scene_category ?? ''
+      };
+
       let formCardData = new FormCardData();
       formCardData.id = jsonData.id ?? '';
       formCardData.timestamp = jsonData.timestamp ?? 0;
-      formCardData.active_module = jsonData.active_module ?? '';
-      formCardData.rule_engine = jsonData.rule_engine;
-      formCardData.dqn = jsonData.dqn;
-      formCardData.vlm = jsonData.vlm;
+      formCardData.action_data = actionData;
       formCardData.favour = false;
 
-       hilog.info(0x0000, TAG, `FormCardData id: ${formCardData.id}, module: ${formCardData.active_module}`);
+       hilog.info(0x0000, TAG, `FormCardData id: ${formCardData.id}, action: ${formCardData.action_data.action_name}, type: ${formCardData.action_data.action_type}`);
 
       let formData = new FormData();
       formData.formId = formId;
