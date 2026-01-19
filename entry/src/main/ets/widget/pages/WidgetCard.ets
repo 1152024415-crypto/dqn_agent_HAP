@@ -11,6 +11,7 @@ struct WidgetCard {
   @LocalStorageProp('formId') formId: string = '';
   @LocalStorageProp('cardList') @Watch('onCardListChange') cardList: FormCardData[] = [];
   @State currentData: FormCardData | null = null;
+  @State animOpacity: number = 1;
 
   readonly fullWidthPercent: string = '100%';
   readonly fullHeightPercent: string = '100%';
@@ -23,6 +24,10 @@ struct WidgetCard {
    onCardListChange() {
     console.log('WidgetCard: cardList changed, length =', this.cardList?.length);
 
+    // 先变为半透明（淡出效果）
+    this.animOpacity = 0.3;
+
+    // 立即更新数据
     if (this.cardList && this.cardList.length > 0) {
       this.currentData = this.cardList[0];
       console.log('WidgetCard: currentData set, id =', this.currentData?.id);
@@ -31,6 +36,9 @@ struct WidgetCard {
       console.log('WidgetCard: cardList is empty or undefined');
       this.currentData = null;
     }
+    
+    // 然后恢复到不透明（淡入效果）
+    this.animOpacity = 1;
   }
 
   // 保留onUpdateForm用于调试，但数据现在通过LocalStorage自动注入
@@ -119,6 +127,11 @@ struct WidgetCard {
           this.statusContent();
         }
       }
+      .opacity(this.animOpacity)
+      .animation({
+        duration: 1000,
+        curve: Curve.EaseOut
+      })
       .margin({ left: 18, right: 18, top: 16, bottom: 12 })
       .layoutWeight(1)
 
@@ -150,12 +163,9 @@ struct WidgetCard {
   }
 
   @Builder
-  actionContent() {
-    Column({ space: 12 }) {
-      if (this.currentData?.action_data) {
-
-
-
+   actionContent() {
+    Column({ space: 8 }) {
+       if (this.currentData?.action_data) {
 
          // Action name (Primary Information)
         if (this.currentData.action_data.action_name && this.currentData.action_data.action_name !== 'NONE') {
@@ -195,7 +205,7 @@ struct WidgetCard {
         }
 
          // Scene category (Secondary Information)
-        if (this.currentData.action_data.scene_category) {
+         if (this.currentData.action_data.scene_category) {
           Column({ space: 4 }) {
             Row() {
               Text('📍')
@@ -220,11 +230,12 @@ struct WidgetCard {
           .padding({ top: 8, bottom: 8, left: 12, right: 12 })
           .backgroundColor('#FAFAFA')
           .borderRadius(8)
+          .margin({ bottom: 2 })
         }
 
          // Image display (if available)
-        if (this.currentData.action_data.image) {
-          Column({ space: 6 }) {
+         if (this.currentData.action_data.image) {
+          Column({ space: 8 }) {
             Row() {
               Text('🖼️')
                 .fontSize(11)
@@ -238,21 +249,23 @@ struct WidgetCard {
             }
             
             Image(this.currentData.action_data.image)
-              .width(100)
-              .height(100)
+              .width(90)
+              .height(90)
               .objectFit(ImageFit.Cover)
-              .borderRadius(10)
+              .borderRadius(12)
               .shadow({
-                radius: 6,
-                color: '#00000006',
+                radius: 8,
+                color: '#00000008',
                 offsetX: 0,
-                offsetY: 1
+                offsetY: 2
               })
+              .margin({ top: 4, bottom: 8 })  // 增加图片上下间距
           }
           .width('100%')
           .alignItems(HorizontalAlign.Center)
-          .padding({ top: 8, bottom: 8 })
-          .borderRadius(10)
+          .padding({ top: 10, bottom: 12 })  // 增加底部padding
+          .backgroundColor('#F8F9FA')
+          .borderRadius(12)
         }
 
         // Timestamp
