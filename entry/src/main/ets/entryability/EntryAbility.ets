@@ -13,13 +13,13 @@ import { CommonConstants } from '../common/CommonConstants';
 const DOMAIN = 0x0000;
 
 interface WorkerMessage {
-  type: 'recommendationData' | 'error' | 'workerError';
+  type: 'recommendationData' | 'error' | 'workerError' | 'refresh_needed';
   data?: RecommendationData;
   error?: string;
 }
 
 interface WorkerCommand {
-  command?: 'start' | 'stop' | 'config';
+  command?: 'start' | 'stop' | 'config' | 'restart';
 }
 
 
@@ -29,6 +29,8 @@ let pollWorker: worker.ThreadWorker | null = null;
 
 export default class EntryAbility extends UIAbility {
   private backgroundTaskId: number = -1;
+  private lastRestartTime: number = 0;
+  private readonly RESTART_COOLDOWN: number = 110000; // 110秒冷却（2分钟定时任务间隔）
 
   private async startBackgroundTask(): Promise<void> {
     try {
@@ -44,7 +46,7 @@ export default class EntryAbility extends UIAbility {
       };
 
       const wantAgentObj: WantAgent = await wantAgent.getWantAgent(wantAgentInfo);
-      
+
       // 申请长时任务
       await backgroundTaskManager.startBackgroundRunning(
         this.context,
@@ -67,6 +69,31 @@ export default class EntryAbility extends UIAbility {
       const err = error as BusinessError;
       hilog.error(DOMAIN, 'EntryAbility', '停止长时任务失败: %{public}s', JSON.stringify(err));
     }
+  }
+
+  private async refreshBackgroundTask(): Promise<void> {
+    // 防抖检查
+    const now = Date.now();
+    if (now - this.lastRestartTime < this.RESTART_COOLDOWN) {
+      hilog.info(DOMAIN, 'EntryAbility', '冷却中，跳过重启');
+      return;
+    }
+    
+    this.lastRestartTime = now;
+    hilog.info(DOMAIN, 'EntryAbility', '开始刷新后台任务');
+    
+    // 1. 停止当前后台任务
+    this.stopBackgroundTask();
+    
+    // 2. 重启Worker轮询
+    if (pollWorker) {
+      pollWorker.postMessage({ command: 'restart' } as WorkerCommand);
+    }
+    
+    // 3. 重新申请后台任务
+    await this.startBackgroundTask();
+    
+    hilog.info(DOMAIN, 'EntryAbility', '后台任务刷新完成');
   }
 
   async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): Promise<void> {
@@ -100,15 +127,28 @@ export default class EntryAbility extends UIAbility {
       // 注册消息回调
       pollWorker.onmessage = (e: MessageEvents) => {
         const message = e.data as WorkerMessage;
-        if (message.type === 'recommendationData' && message.data && httpPollService) {
-          // 处理推荐数据
-          httpPollService.saveToPreferences(message.data).then(() => {
-            hilog.info(DOMAIN, 'EntryAbility', 'Data processed by worker successfully');
-          }).catch((error: BusinessError) => {
-            hilog.error(DOMAIN, 'EntryAbility', 'Failed to process data: %{public}s', JSON.stringify(error));
-          });
-        } else if (message.type === 'error' || message.type === 'workerError') {
-          hilog.error(DOMAIN, 'EntryAbility', 'Worker error: %{public}s', message.error);
+        
+        switch (message.type) {
+          case 'recommendationData':
+            if (message.data && httpPollService) {
+              // 处理推荐数据
+              httpPollService.saveToPreferences(message.data).then(() => {
+                hilog.info(DOMAIN, 'EntryAbility', 'Data processed by worker successfully');
+              }).catch((error: BusinessError) => {
+                hilog.error(DOMAIN, 'EntryAbility', 'Failed to process data: %{public}s', JSON.stringify(error));
+              });
+            }
+            break;
+            
+          case 'refresh_needed':
+            hilog.info(DOMAIN, 'EntryAbility', '收到Worker刷新通知，触发后台任务刷新');
+            this.refreshBackgroundTask();
+            break;
+            
+          case 'error':
+          case 'workerError':
+            hilog.error(DOMAIN, 'EntryAbility', 'Worker error: %{public}s', message.error);
+            break;
         }
       };
       
@@ -173,8 +213,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
-    // Ability has brought to foreground
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+    hilog.info(DOMAIN, 'EntryAbility', '应用回到前台，刷新后台任务');
+    this.refreshBackgroundTask();
   }
 
   onBackground(): void {

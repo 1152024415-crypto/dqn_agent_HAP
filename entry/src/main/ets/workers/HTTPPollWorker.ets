@@ -9,20 +9,24 @@ const workerPort: ThreadWorkerGlobalScope = worker.workerPort;
 const DOMAIN = 0x0000;
 
 interface WorkerCommand {
-  command?: 'start' | 'stop' | 'config';
+  command?: 'start' | 'stop' | 'config' | 'restart';
 }
 
 interface WorkerResponse {
-  type: 'recommendationData' | 'error' | 'workerError';
+  type: 'recommendationData' | 'error' | 'workerError' | 'refresh_needed';
   data?: RecommendationData;
   error?: string;
 }
 
 // 配置
 const POLL_INTERVAL = 2000; // 2秒
+const REFRESH_THRESHOLD = 120000; // 2分钟（毫秒）
+const POLL_CHECK_INTERVAL = 30; // 每30次轮询检查一次（约1分钟）
 
 let pollingTimer: number | null = null;
 let isPolling = false;
+let startTime: number = 0;
+let pollCount: number = 0;
 
 // 处理主线程消息
 workerPort.onmessage = (e: MessageEvents) => {
@@ -35,6 +39,10 @@ workerPort.onmessage = (e: MessageEvents) => {
       break;
     case 'stop':
       stopPolling();
+      break;
+    case 'restart':
+      stopPolling();
+      startPolling();
       break;
     case 'config':
       // 可以接收配置，这里简化
@@ -52,6 +60,8 @@ function startPolling(): void {
   }
   
   isPolling = true;
+  startTime = Date.now();
+  pollCount = 0;
   
   // 立即执行一次
   pollData();
@@ -78,6 +88,21 @@ function stopPolling(): void {
 
 // 轮询数据
 async function pollData(): Promise<void> {
+  // 计时检查：每POLL_CHECK_INTERVAL次轮询检查一次时间
+  pollCount++;
+  if (pollCount % POLL_CHECK_INTERVAL === 0) {
+    const elapsed = Date.now() - startTime;
+    if (elapsed >= REFRESH_THRESHOLD) {
+      // 发送刷新通知给主线程
+      workerPort.postMessage({ type: 'refresh_needed' });
+      hilog.info(DOMAIN, 'HTTPPollWorker', 'Worker运行%{public}dms，通知Ability刷新后台任务', elapsed);
+      
+      // 重置计时器
+      startTime = Date.now();
+      pollCount = 0;
+    }
+  }
+  
   try {
     const url = `${CommonConstants.SERVER_URL}/latest-recommendation`;
     
