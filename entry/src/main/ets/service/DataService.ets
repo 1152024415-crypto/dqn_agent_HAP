@@ -1,5 +1,6 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { ActionData } from '../common/CommonData';
+import { DqnState } from '../common/CommonData';
 
 const DOMAIN = 0x0000;
 
@@ -13,6 +14,7 @@ export interface RecommendationData {
   action_name: string;
   image: string | null;  // base64 encoded image or null
   scene_category: string;
+  dqn_state?: DqnState;
 }
 
 /**
@@ -25,6 +27,7 @@ interface JsonData {
   action_name?: string;
   image?: string | null;
   scene_category?: string;
+  dqn_state?: DqnState;
 }
 
 /**
@@ -59,13 +62,26 @@ export class DataService {
       // image can be null or string
       const image = data.image === undefined ? null : data.image;
 
+       const dqnState: DqnState = {
+         activity: data.dqn_state?.activity ?? '未知',
+         location: data.dqn_state?.location ?? '未知',
+         light: data.dqn_state?.light ?? '未知',
+         scene: data.dqn_state?.scene ?? '未知'
+       };
+       
+       // 调试日志：记录dqn_state解析过程
+       hilog.info(DOMAIN, 'DataServiceHAP', 'Parsing dqn_state - raw: %{public}s, parsed: activity=%{public}s, location=%{public}s, light=%{public}s, scene=%{public}s',
+         JSON.stringify(data.dqn_state || 'undefined'),
+         dqnState.activity, dqnState.location, dqnState.light, dqnState.scene);
+
       return {
         id: data.id,
         timestamp: data.timestamp,
         action_type: data.action_type as 'probe' | 'recommend' | 'none',
         action_name: data.action_name,
-        image: image,
-        scene_category: data.scene_category
+        image: data.image === undefined ? null : data.image,
+        scene_category: data.scene_category,
+        dqn_state: dqnState
       };
 
     } catch (error) {
@@ -102,7 +118,7 @@ export class DataService {
    */
   static isValidAction(action: string): boolean {
     const validActions = [
-      'QUERY_LOC_NET', 'QUERY_LOC_GPS', 'QUERY_VISUAL', 
+      'QUERY_LOC_NET', 'QUERY_LOC_GPS', 'QUERY_VISUAL',
       'QUERY_SOUND_INTENSITY', 'QUERY_LIGHT_INTENSITY',
       'NONE', 'step_count_and_map', 'transit_QR_code',
       'train_information', 'flight_information', 'payment_QR_code',

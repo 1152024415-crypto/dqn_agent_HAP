@@ -32,7 +32,7 @@ let pollCount: number = 0;
 workerPort.onmessage = (e: MessageEvents) => {
   const data = e.data as WorkerCommand;
   const command = data.command;
-  
+
   switch (command) {
     case 'start':
       startPolling();
@@ -48,7 +48,7 @@ workerPort.onmessage = (e: MessageEvents) => {
       // 可以接收配置，这里简化
       break;
     default:
-      // 默认开始轮询
+    // 默认开始轮询
       startPolling();
   }
 };
@@ -58,14 +58,14 @@ function startPolling(): void {
   if (isPolling) {
     return;
   }
-  
+
   isPolling = true;
   startTime = Date.now();
   pollCount = 0;
-  
+
   // 立即执行一次
   pollData();
-  
+
   // 设置定时轮询
   pollingTimer = setInterval(() => {
     pollData();
@@ -77,9 +77,9 @@ function stopPolling(): void {
   if (!isPolling) {
     return;
   }
-  
+
   isPolling = false;
-  
+
   if (pollingTimer !== null) {
     clearInterval(pollingTimer);
     pollingTimer = null;
@@ -96,16 +96,15 @@ async function pollData(): Promise<void> {
       // 发送刷新通知给主线程
       workerPort.postMessage({ type: 'refresh_needed' });
       hilog.info(DOMAIN, 'HTTPPollWorker', 'Worker运行%{public}dms，通知Ability刷新后台任务', elapsed);
-      
+
       // 重置计时器
       startTime = Date.now();
       pollCount = 0;
     }
   }
-  
   try {
     const url = `${CommonConstants.SERVER_URL}/latest-recommendation`;
-    
+
     const httpRequest = http.createHttp();
     const response = await httpRequest.request(url, {
       method: http.RequestMethod.GET,
@@ -119,7 +118,7 @@ async function pollData(): Promise<void> {
 
     if (response.responseCode === 200) {
       const result = response.result as string;
-      
+
       const data = DataService.parseRecommendationData(result);
       if (data) {
         // 发送数据给主线程
@@ -132,7 +131,7 @@ async function pollData(): Promise<void> {
     } else if (response.responseCode === 204) {
       // No Content - 服务器暂无数据
     }
-    
+
     httpRequest.destroy();
   } catch (error) {
     const err = error as BusinessError;

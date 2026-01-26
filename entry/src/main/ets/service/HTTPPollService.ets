@@ -10,7 +10,7 @@ import { FormCardData, FormData, ActionData } from '../common/CommonData';
 import vibrator from '@ohos.vibrator';
 
 const DOMAIN = 0x0000;
-
+const TAG: string = 'HTTPPollService';
 export class HTTPPollService {
   private serverUrl: string = '';
   private isPolling: boolean = false;
@@ -85,13 +85,20 @@ export class HTTPPollService {
         const result = response.result as string;
         hilog.info(DOMAIN, 'HTTPPollService', 'Received data: %{public}s', result.substring(0, 200));
 
-        const data = DataService.parseRecommendationData(result);
-        if (data) {
-          await this.saveToPreferences(data);
-          hilog.info(DOMAIN, 'HTTPPollService', 'Data saved to Preferences');
-        } else {
-          hilog.warn(DOMAIN, 'HTTPPollService', 'Invalid data format');
-        }
+         const data = DataService.parseRecommendationData(result);
+         if (data) {
+           // 调试日志：记录接收到的dqn_state数据
+           if (data.dqn_state) {
+             hilog.info(DOMAIN, 'HTTPPollService', 'Received dqn_state: activity=%{public}s, location=%{public}s, light=%{public}s, scene=%{public}s',
+               data.dqn_state.activity, data.dqn_state.location, data.dqn_state.light, data.dqn_state.scene);
+           } else {
+             hilog.warn(DOMAIN, 'HTTPPollService', 'dqn_state is undefined in parsed data!');
+           }
+           await this.saveToPreferences(data);
+           hilog.info(DOMAIN, 'HTTPPollService', 'Data saved to Preferences');
+         } else {
+           hilog.warn(DOMAIN, 'HTTPPollService', 'Invalid data format');
+         }
       } else if (response.responseCode === 204) {
         // No Content - 服务器暂无数据
         hilog.info(DOMAIN, 'HTTPPollService', 'No new data available (204)');
@@ -106,7 +113,7 @@ export class HTTPPollService {
     }
   }
 
-   private async triggerVibration(duration: number = 800): Promise<void> {
+  private async triggerVibration(duration: number = 800): Promise<void> {
     try {
       await vibrator.startVibration({
         type: 'time',
@@ -114,16 +121,16 @@ export class HTTPPollService {
       }, {
         usage: 'notification'
       });
-      
+
       hilog.info(DOMAIN, 'HTTPPollService', 'Vibration triggered: %{public}dms', duration);
     } catch (error) {
       const err = error as BusinessError;
-      hilog.error(DOMAIN, 'HTTPPollService', 'Vibration failed: code=%{public}d, message=%{public}s', 
+      hilog.error(DOMAIN, 'HTTPPollService', 'Vibration failed: code=%{public}d, message=%{public}s',
         err?.code || -1, err?.message || JSON.stringify(error));
     }
   }
 
-   private shouldTriggerVibration(newData: RecommendationData): boolean {
+  private shouldTriggerVibration(newData: RecommendationData): boolean {
     try {
       const util = PreferencesUtil.getInstance();
       const preferences = util.getPreferences(this.context);
@@ -150,26 +157,26 @@ export class HTTPPollService {
         util.preferencesPut(preferences, CommonConstants.LAST_DATA_KEY, JSON.stringify(newData));
         return true;
       }
-      
+
       // Compare key fields (excluding id and timestamp)
       const lastImage = lastData.image || null;
       const newImage = newData.image || null;
-      const dataChanged = 
+      const dataChanged =
         lastData.action_type !== newData.action_type ||
-        lastData.action_name !== newData.action_name ||
-        lastData.scene_category !== newData.scene_category ||
-        lastImage !== newImage;
-      
+          lastData.action_name !== newData.action_name ||
+          lastData.scene_category !== newData.scene_category ||
+          lastImage !== newImage;
+
       hilog.info(DOMAIN, 'HTTPPollService', 'Data comparison - changed: %{public}s, action_type: %{public}s vs %{public}s, action_name: %{public}s vs %{public}s, scene: %{public}s vs %{public}s, image: %{public}s vs %{public}s',
         dataChanged ? 'true' : 'false',
         lastData.action_type, newData.action_type,
         lastData.action_name, newData.action_name,
         lastData.scene_category, newData.scene_category,
         lastImage ? 'has_image' : 'null', newImage ? 'has_image' : 'null');
-      
+
       // Save current data for next comparison
       util.preferencesPut(preferences, CommonConstants.LAST_DATA_KEY, JSON.stringify(newData));
-      
+
       return dataChanged;
     } catch (error) {
       hilog.error(DOMAIN, 'HTTPPollService', 'Vibration check failed: %{public}s', JSON.stringify(error));
@@ -177,7 +184,7 @@ export class HTTPPollService {
     }
   }
 
-   public async saveToPreferences(data: RecommendationData): Promise<void> {
+  public async saveToPreferences(data: RecommendationData): Promise<void> {
     try {
       const util = PreferencesUtil.getInstance();
       const preferences = util.getPreferences(this.context);
@@ -185,69 +192,85 @@ export class HTTPPollService {
       if (preferences) {
         const jsonString = JSON.stringify(data);
         util.preferencesPut(preferences, CommonConstants.DATA_KEY, jsonString);
-        hilog.info(DOMAIN, 'HTTPPollService', 'Saved to Preferences: %{public}s', jsonString.substring(0, 200));
+        hilog.info(DOMAIN, TAG, `[Step 1] Saved new data to Prefs. (Action: ${data.action_name})`);
 
-         // Trigger vibration only if data changed (excluding id and timestamp)
         if (this.shouldTriggerVibration(data)) {
           await this.triggerVibration(800);
         }
 
-        // 获取所有formId并更新所有Widget
-        const formIds = util.getAllFormIds(preferences);
-        
-        if (formIds.length === 0) {
-          // 兼容旧版本：获取单个formId
-          const singleFormId = util.preferencesGet(preferences, CommonConstants.FORM_ID_KEY, '') as string;
-          if (singleFormId) {
-            formIds.push(singleFormId);
-          }
-        }
-        
-        if (formIds.length > 0) {
-          hilog.info(DOMAIN, 'HTTPPollService', 'Updating %{public}d forms: %{public}s', formIds.length, JSON.stringify(formIds));
-          
-           // Convert data format to FormData
-          const actionData: ActionData = {
-            action_type: data.action_type,
-            action_name: data.action_name,
-            image: data.image,
-            scene_category: data.scene_category
-          };
+        // === [核心修正] 强化卡片更新通知逻辑 ===
+
+        // 1. 获取所有当前存在的卡片ID
+        const allFormIds = util.getAllFormIds(preferences);
+
+        if (allFormIds.length > 0) {
+          hilog.info(DOMAIN, TAG, `[Step 2] Found ${allFormIds.length} forms to update: ${JSON.stringify(allFormIds)}`);
+
+           // 2. 将新数据转换为卡片需要的数据结构
+           // (这部分逻辑最好放在这里，而不是在 onUpdateForm 中，以确保数据一致性)
+           // 调试日志：记录actionData中的dqn_state值
+           hilog.info(DOMAIN, TAG, `[DEBUG] Creating actionData, dqn_state exists: ${data.dqn_state ? 'YES' : 'NO'}`);
+           if (data.dqn_state) {
+             hilog.info(DOMAIN, TAG, `[DEBUG] dqn_state values: activity=${data.dqn_state.activity}, location=${data.dqn_state.location}, light=${data.dqn_state.light}, scene=${data.dqn_state.scene}`);
+           }
+           
+           const actionData: ActionData = {
+             action_type: data.action_type,
+             action_name: data.action_name,
+             image: data.image,
+             scene_category: data.scene_category,
+              // 确保dqn_state始终有值，即使data.dqn_state为undefined
+              dqn_state: data.dqn_state || {
+                activity: '--',
+                location: '--',
+                light: '--',
+                scene: '--'
+              }
+           };
 
           const formCardData = new FormCardData();
           formCardData.id = data.id;
           formCardData.timestamp = data.timestamp;
           formCardData.action_data = actionData;
-          formCardData.favour = false;
 
-          hilog.info(DOMAIN, 'HTTPPollService', 'FormCardData - id: %{public}s, action: %{public}s, type: %{public}s', 
-            formCardData.id, formCardData.action_data.action_name, formCardData.action_data.action_type);
-          
-          // 为每个formId更新卡片
-          for (const formId of formIds) {
+          // 3. 遍历并更新每一个卡片实例
+          const updatePromises = allFormIds.map(formId => {
             try {
               const formData = new FormData();
-              formData.formId = formId;
+              formData.formId = formId; // 确保每个卡片拿到的数据里有自己的ID
               formData.formTime = Date.now().toString();
               formData.cardList = [formCardData];
 
-              hilog.info(DOMAIN, 'HTTPPollService', 'FormData - formId: %{public}s, formTime: %{public}s, cardList length: %{public}d', formData.formId, formData.formTime, formData.cardList.length);
-
               const formMsg = formBindingData.createFormBindingData(formData);
-              await formProvider.updateForm(formId, formMsg);
-              hilog.info(DOMAIN, 'HTTPPollService', 'Form updated successfully: %{public}s', formId);
-            } catch (error) {
-              hilog.error(DOMAIN, 'HTTPPollService', 'Failed to update form %{public}s: %{public}s', formId, JSON.stringify(error));
+
+              hilog.info(DOMAIN, TAG, `[Step 3] Sending update signal to form: ${formId}`);
+
+              // 发起更新
+              return formProvider.updateForm(formId, formMsg)
+                .then(() => {
+                  hilog.info(DOMAIN, TAG, `[SUCCESS] updateForm for ${formId} successful.`);
+                })
+                .catch((error: BusinessError) => {
+                  hilog.error(DOMAIN, TAG, `[FAIL] updateForm for ${formId} failed: ${JSON.stringify(error)}`);
+                });
+            } catch (innerError) {
+              hilog.error(DOMAIN, TAG, `[CRITICAL] Error preparing update for form ${formId}: ${JSON.stringify(innerError)}`);
+              return Promise.resolve(); // 避免一个卡片的错误中断所有
             }
-          }
+          });
+
+          await Promise.all(updatePromises);
+          hilog.info(DOMAIN, TAG, `[Step 4] All form update attempts finished.`);
+
         } else {
-          hilog.warn(DOMAIN, 'HTTPPollService', 'No formId found in Preferences');
+          hilog.warn(DOMAIN, TAG, 'No formIds found in Preferences. Card will not update.');
         }
       }
     } catch (error) {
-      hilog.error(DOMAIN, 'HTTPPollService', 'Failed to save or update form: %{public}s', JSON.stringify(error));
+      hilog.error(DOMAIN, TAG, 'Failed to save or update form: %{public}s', JSON.stringify(error));
     }
   }
+
 
   isRunning(): boolean {
     return this.isPolling;

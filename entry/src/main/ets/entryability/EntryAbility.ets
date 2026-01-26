@@ -53,7 +53,7 @@ export default class EntryAbility extends UIAbility {
         backgroundTaskManager.BackgroundMode.DATA_TRANSFER,
         wantAgentObj
       );
-      
+
       hilog.info(DOMAIN, 'EntryAbility', '长时任务申请成功');
     } catch (error) {
       const err = error as BusinessError;
@@ -78,21 +78,21 @@ export default class EntryAbility extends UIAbility {
       hilog.info(DOMAIN, 'EntryAbility', '冷却中，跳过重启');
       return;
     }
-    
+
     this.lastRestartTime = now;
     hilog.info(DOMAIN, 'EntryAbility', '开始刷新后台任务');
-    
+
     // 1. 停止当前后台任务
     this.stopBackgroundTask();
-    
+
     // 2. 重启Worker轮询
     if (pollWorker) {
       pollWorker.postMessage({ command: 'restart' } as WorkerCommand);
     }
-    
+
     // 3. 重新申请后台任务
     await this.startBackgroundTask();
-    
+
     hilog.info(DOMAIN, 'EntryAbility', '后台任务刷新完成');
   }
 
@@ -106,7 +106,7 @@ export default class EntryAbility extends UIAbility {
 
     // 创建HTTP轮询服务实例（用于数据处理）
     httpPollService = new HTTPPollService(this.context, CommonConstants.SERVER_URL);
-    
+
     // 请求震动权限
     try {
       const atManager = abilityAccessCtrl.createAtManager();
@@ -116,18 +116,17 @@ export default class EntryAbility extends UIAbility {
       const err = error as BusinessError;
       hilog.error(DOMAIN, 'EntryAbility', 'Failed to request vibrate permission: %{public}s', JSON.stringify(err));
     }
-    
+
     // 启动长时后台任务
     await this.startBackgroundTask();
-    
+
     // 创建Worker进行后台HTTP轮询
     try {
       pollWorker = new worker.ThreadWorker('entry/ets/workers/HTTPPollWorker.ets');
-      
+
       // 注册消息回调
       pollWorker.onmessage = (e: MessageEvents) => {
         const message = e.data as WorkerMessage;
-        
         switch (message.type) {
           case 'recommendationData':
             if (message.data && httpPollService) {
@@ -139,29 +138,29 @@ export default class EntryAbility extends UIAbility {
               });
             }
             break;
-            
+
           case 'refresh_needed':
             hilog.info(DOMAIN, 'EntryAbility', '收到Worker刷新通知，触发后台任务刷新');
             this.refreshBackgroundTask();
             break;
-            
+
           case 'error':
           case 'workerError':
             hilog.error(DOMAIN, 'EntryAbility', 'Worker error: %{public}s', message.error);
             break;
         }
       };
-      
+
       // 注册错误回调
       pollWorker.onAllErrors = (err: ErrorEvent) => {
         hilog.error(DOMAIN, 'EntryAbility', 'Worker onAllErrors: %{public}s', JSON.stringify(err));
       };
-      
+
       // 注册退出回调
       pollWorker.onexit = (code: number) => {
         hilog.info(DOMAIN, 'EntryAbility', 'Worker exited with code: %{public}d', code);
       };
-      
+
       // 启动Worker轮询
       pollWorker.postMessage({ command: 'start' } as WorkerCommand);
       hilog.info(DOMAIN, 'EntryAbility', 'Worker started for HTTP polling');
@@ -213,6 +212,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    // Ability has brought to foreground
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
     hilog.info(DOMAIN, 'EntryAbility', '应用回到前台，刷新后台任务');
     this.refreshBackgroundTask();
   }

@@ -66,7 +66,7 @@ export class PreferencesUtil {
     try {
       let formIdsJson = this.preferencesGet(preferences, CommonConstants.FORM_IDS_KEY, '[]');
       let formIds: string[] = JSON.parse(formIdsJson);
-      
+
       if (!formIds.includes(formId)) {
         formIds.push(formId);
         this.preferencesPut(preferences, CommonConstants.FORM_IDS_KEY, JSON.stringify(formIds));
